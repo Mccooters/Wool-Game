@@ -23,10 +23,14 @@
     border-radius:999px; padding:5px 12px; font-size:14px; text-shadow:0 1px 2px rgba(0,0,0,.35);
     box-shadow:0 3px 8px rgba(20,35,70,.25); }
   .pill.coins { background:linear-gradient(#f6b93d,#e8940f); border-color:rgba(255,248,220,.7); margin-left:auto; }
+  .coin-ic { width:15px; height:15px; border-radius:50%; flex:none;
+    background:radial-gradient(circle at 35% 30%, #ffeeb0, #f5c02c 55%, #d78e08);
+    border:1.5px solid #a86c07; box-shadow:inset 0 -2px 2px rgba(0,0,0,.18); }
   .iconbtn { pointer-events:auto; width:36px; height:36px; border-radius:12px; border:2px solid rgba(255,255,255,.55);
-    border-bottom-width:4px; background:linear-gradient(#8fa7c8,#6d87ad); color:#fff; font-size:17px; line-height:30px;
-    text-align:center; cursor:pointer; box-shadow:0 3px 8px rgba(20,35,70,.25); }
+    border-bottom-width:4px; background:linear-gradient(#8fa7c8,#6d87ad); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; box-shadow:0 3px 8px rgba(20,35,70,.25); }
   .iconbtn:active { transform:translateY(2px); border-bottom-width:2px; }
+  .iconbtn svg { display:block; }
 
   /* ---------- Boosters ---------- */
   #boosters { position:absolute; left:0; right:0; bottom:calc(env(safe-area-inset-bottom, 0px) + 8px);
@@ -84,9 +88,9 @@
     <canvas id="cv"></canvas>
     <div id="hud">
       <div class="pill" id="lvlPill">Level 1</div>
-      <div class="pill coins" id="coinPill">🪙 0</div>
-      <button class="iconbtn" id="muteBtn">🔊</button>
-      <button class="iconbtn" id="gearBtn">⚙️</button>
+      <div class="pill coins" id="coinPill"><span class="coin-ic"></span><span id="coinVal">0</span></div>
+      <button class="iconbtn" id="muteBtn" aria-label="Sound"></button>
+      <button class="iconbtn" id="gearBtn" aria-label="Settings"></button>
     </div>
     <div id="boosters">
       <div class="boost" data-act="back"><span class="cost">40</span><div class="em">⏪</div><div class="nm">Back</div></div>
@@ -120,7 +124,9 @@ const easeOutCubic = t=>1-Math.pow(1-t,3);
 const easeInQuad   = t=>t*t;
 const easeOutBack  = t=>{ const c=1.7; return 1+(c+1)*Math.pow(t-1,3)+c*Math.pow(t-1,2); };
 const key = (c,r)=>c+','+r;
-const DIRS = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] };
+const DIRS = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0],
+               ul:[-1,-1], ur:[1,-1], dl:[-1,1], dr:[1,1] };
+const ORTHO=['up','down','left','right'], DIAG=['ul','ur','dl','dr'];
 
 // ---------- persistence ----------
 const SAVE_KEY='woolcrush_v1';
@@ -210,7 +216,8 @@ function buildPath(){
   const raw=[];
   const seg=(x0,y0,x1,y1)=>{ const n=28; for(let i=0;i<=n;i++) raw.push([lerp(x0,x1,i/n), lerp(y0,y1,i/n)]); };
   const arc=(cx,cy,r,a0,a1)=>{ const n=24; for(let i=1;i<=n;i++){ const t=lerp(a0,a1,i/n); raw.push([cx+Math.cos(t)*r, cy+Math.sin(t)*r]); } };
-  seg(mx, top, a.w-mx, top);
+  // the path begins beyond the left edge so the body truly crawls in from offscreen
+  seg(-a.w*0.18, top, a.w-mx, top);
   arc(a.w-mx, top+R1, R1, -Math.PI/2, Math.PI/2);
   seg(a.w-mx, mid, mx, mid);
   arc(mx, mid+R2, R2, -Math.PI/2, -Math.PI*1.5);
@@ -220,7 +227,9 @@ function buildPath(){
     if(i>0){ const dx=raw[i][0]-raw[i-1][0], dy=raw[i][1]-raw[i-1][1]; const d=Math.hypot(dx,dy); if(d<0.4) continue; L+=d; cum.push(L); }
     pts.push(raw[i]);
   }
-  path={pts,cum,len:L};
+  let entryS=0;
+  for(let i=0;i<pts.length;i++) if(pts[i][0]>=0){ entryS=cum[i]; break; }
+  path={pts,cum,len:L,entryS};
 }
 function posAt(s){
   s=clamp(s,0,path.len);
@@ -237,6 +246,7 @@ function targetCells(L){ return L>=14 ? 52-randi(0,5) : 13+3*L; }
 function creepFor(L){ return 0.005 + Math.min(0.019, 0.0009*L); }
 function pushFactorFor(L){ return Math.max(0.22, 0.55-0.011*L); }
 function nColorsFor(L){ return L>=24 ? 7 : clamp(3+Math.floor(L/5),3,6); }
+function diagChanceFor(L){ return L<9 ? 0 : Math.min(0.35, 0.04+(L-8)*0.03); }
 function runLenFor(L){ return L<6?randi(2,3) : L<16?randi(1,3) : randi(1,2); }
 function windowFor(L,slots){ return clamp(1+Math.floor(L/6),1,Math.min(2,slots-1)); }
 function doubleRatioFor(L){ return Math.min(0.25+L*0.03,0.6); }
@@ -276,7 +286,7 @@ function maskFor(shape,target){
   return {mask, cols, rows};
 }
 
-function tileMask(mask, dblRatio, edgeBias, cols, rows){
+function tileMask(mask, dblRatio, edgeBias, cols, rows, diagChance){
   const cells=shuffle([...mask].map(k=>k.split(',').map(Number)));
   const used=new Set(), pieces=[]; let id=1;
   for(const [c,r] of cells){
@@ -294,15 +304,20 @@ function tileMask(mask, dblRatio, edgeBias, cols, rows){
       }
     }
     if(!placed){ used.add(key(c,r));
-      pieces.push({id:id++, cells:[{c,r}], len:1, axis:null, dir:null, color:0, units:2, state:'board'}); }
+      pieces.push({id:id++, cells:[{c,r}], len:1, axis:null, dir:null, color:0, units:2, state:'board', diag:Math.random()<diagChance}); }
   }
   for(const p of pieces) rollDirBiased(p, edgeBias, cols, rows);
   return pieces;
 }
 function allowedDirs(p){
-  return p.len===2 ? (p.axis==='h'?['left','right']:['up','down']) : ['up','down','left','right'];
+  return p.len===2 ? (p.axis==='h'?['left','right']:['up','down']) : (p.diag?DIAG:ORTHO);
 }
 function rollDir(p){ p.dir=choice(allowedDirs(p)); }
+function stepsToEdge(cl,dc,dr,cols,rows){
+  const sx=dc>0?cols-1-cl.c : dc<0?cl.c : 1e9;
+  const sy=dr>0?rows-1-cl.r : dr<0?cl.r : 1e9;
+  return Math.min(sx,sy);
+}
 function rollDirBiased(p, bias, cols, rows){
   const dirs=allowedDirs(p);
   if(Math.random()>=bias){ p.dir=choice(dirs); return; }
@@ -311,10 +326,7 @@ function rollDirBiased(p, bias, cols, rows){
   for(const d of dirs){
     const [dc,dr]=DIRS[d];
     let dist=1e9;
-    for(const cl of p.cells){
-      const steps=dc>0?cols-1-cl.c : dc<0?cl.c : dr>0?rows-1-cl.r : cl.r;
-      dist=Math.min(dist,steps);
-    }
+    for(const cl of p.cells) dist=Math.min(dist,stepsToEdge(cl,dc,dr,cols,rows));
     if(dist<bestD){ bestD=dist; best=[d]; }
     else if(dist===bestD) best.push(d);
   }
@@ -351,7 +363,7 @@ function genLevel(L, slots){
   for(let attempt=0;attempt<40;attempt++){
     const pool=shapePool(L);
     const {mask,cols,rows}=maskFor(pool[(L-1+attempt)%pool.length], targetCells(L));
-    const pieces=tileMask(mask, doubleRatioFor(L), edgeBiasFor(L), cols, rows);
+    const pieces=tileMask(mask, doubleRatioFor(L), edgeBiasFor(L), cols, rows, diagChanceFor(L));
     const order=simOrder(pieces, cols, rows);
     if(!order) continue;
     // colors assigned along the feasible order, in runs that shrink at higher levels
@@ -404,7 +416,7 @@ function capacity(){ return permSlots() + (G.tempSlot?1:0); }
 function occupancyPieces(){ return G.pieces.filter(p=>['extract','fly','tray'].includes(p.state)); }
 // arc-length position of body segment i (0 = right behind the head)
 function segS(i,seg){ return G.front-G.thick*0.4-(i+0.5)*G.segLen-(seg?seg.ofs:0); }
-function segVisible(i){ return segS(i)>=G.segLen*0.4; }
+function segVisible(i){ return segS(i)>=path.entryS+G.segLen*0.4; }
 function visibleColors(){
   const out=[];
   for(let i=0;i<G.snake.length && segVisible(i);i++) out.push(G.snake[i].c);
@@ -457,11 +469,11 @@ function traySlots(){
   const lockedLv5 = G.level<6 ? 1 : 0;
   const locked500 = save.slot5 ? 0 : 1;
   const total=cap+lockedLv5+locked500;
-  const a=A.tray, s=Math.min(a.h*0.92, (a.w*0.92)/total - 6);
-  const w=total*(s+6)-6, x0=a.x+(a.w-w)/2, y=a.y+(a.h-s)/2;
+  const a=A.tray, s=Math.min(a.h*0.9, (a.w*0.9)/total - 8, 64);
+  const w=total*(s+8)-8, x0=a.x+(a.w-w)/2, y=a.y+(a.h-s)/2;
   const out=[];
   for(let i=0;i<total;i++){
-    out.push({ x:x0+i*(s+6), y, s,
+    out.push({ x:x0+i*(s+8), y, s,
       kind: i<cap ? 'open' : (lockedLv5 && i===cap ? 'lv5' : 'coin') });
   }
   return out;
@@ -472,14 +484,14 @@ function freeSlotIndex(){
   for(let i=0;i<capacity();i++) if(!used.has(i)) return i;
   return null;
 }
-function headR(){ return clamp(G.thick*0.85+7,17,38); }
+function headR(){ return clamp(G.thick*0.78+5,15,33); }
 function headPos(){
   const p=posAt(G.front), R=headR();
   return { x:p.x+Math.cos(p.ang)*R*0.6, y:p.y+Math.sin(p.ang)*R*0.6, ang:p.ang };
 }
 function catPos(){
   const p=posAt(catParam());
-  return { x:p.x+Math.cos(p.ang)*46, y:p.y+Math.sin(p.ang)*46-2 };
+  return { x:p.x+Math.cos(p.ang)*52, y:p.y+Math.sin(p.ang)*52-3 };
 }
 
 // ---------- interaction ----------
@@ -552,7 +564,7 @@ function completeWind(p){
   p.units--;
   if(p.units<=0){                        // spool is full: pops off, frees the slot
     p.state='gone'; p.slot=null;
-    save.coins+=2; persist();
+    save.coins+=1; persist();
     sfx.coin(); popFx(p);
     compactTray();
   }
@@ -578,7 +590,7 @@ function winCheck(){
 }
 function win(){
   G.phase='win';
-  const reward=30+Math.min(40,2*G.level)+(G.usedAnyBoost?0:10);
+  const reward=25+Math.min(35,2*G.level)+(G.usedAnyBoost?0:10);
   save.coins+=reward; save.level=G.level+1; persist();
   sfx.win(); buzz([30,40,60]);
   for(let i=0;i<90;i++) G.confetti.push({x:rand(0,W),y:rand(-H*0.3,0),vx:rand(-30,30),vy:rand(40,140),r:rand(2.5,5),c:PALETTE[randi(0,7)].m,t:0,dur:rand(1.2,2.2),sp:rand(2,7)});
@@ -663,10 +675,15 @@ document.getElementById('boosters').addEventListener('pointerdown',e=>{
 
 // ---------- HUD / overlay ----------
 const $=id=>document.getElementById(id);
+const ICONS={
+  sndOn:'<svg width="19" height="19" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4.5v-15L8 9H4z" fill="#fff"/><path d="M16.5 8.5a5 5 0 010 7" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>',
+  sndOff:'<svg width="19" height="19" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4.5v-15L8 9H4z" fill="#fff" opacity="0.75"/><path d="M15.5 9L21 14.5M21 9l-5.5 5.5" stroke="#ffb3b3" stroke-width="2.4" stroke-linecap="round"/></svg>',
+  gear:'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round"><circle cx="12" cy="12" r="3.4"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/></svg>',
+};
 function updateHud(){
   $('lvlPill').textContent='Level '+G.level;
-  $('coinPill').textContent='🪙 '+save.coins;
-  $('muteBtn').textContent=save.mute?'🔇':'🔊';
+  $('coinVal').textContent=save.coins;
+  $('muteBtn').innerHTML=save.mute?ICONS.sndOff:ICONS.sndOn;
   document.querySelectorAll('.boost').forEach(b=>{
     const cost=PRICES[b.dataset.act==='slot'?'slot':b.dataset.act];
     b.classList.toggle('off', G.phase!=='play'||save.coins<cost||(b.dataset.act==='slot'&&G.usedSlotBoost));
@@ -881,7 +898,7 @@ function drawBolt(x,y,w,h,colIdx,dir,units,opts={}){
   if(dir){
     const [dc,dr]=DIRS[dir];
     const cx=x+w/2, cy=y+h/2;
-    const L=(dir==='left'||dir==='right'?w:h)*0.30;
+    const L=(dc&&dr) ? Math.min(w,h)*0.32 : (dc?w:h)*0.30;
     const hw=Math.min(w,h)*0.16;
     ctx.save();
     ctx.translate(cx,cy); ctx.rotate(Math.atan2(dr,dc));
@@ -1034,7 +1051,7 @@ function drawDragonHead(){
 
 function drawCat(){
   const c=catPos(), danger=dangerFrac();
-  const s=Math.max(13,A.snake.h*0.075);
+  const s=Math.max(16,A.snake.h*0.10);
   const tr=danger>0.68?rand(-1.6,1.6):0;
   const x=c.x+tr, y=c.y+(danger>0.68?rand(-1,1):0);
   ctx.save(); ctx.translate(x,y); ctx.scale(-1,1);
@@ -1097,10 +1114,10 @@ function draw(){
 
   drawCat();
 
-  // snake body, tail first
+  // snake body, tail first (offscreen strip included — it glides in past the edge)
   for(let i=G.snake.length-1;i>=0;i--){
     const s=segS(i,G.snake[i])+Math.sin(G.crawlT*0.9)*G.segLen*0.10;
-    if(s<G.segLen*0.4) continue;
+    if(s<1) continue;
     const p=posAt(s);
     drawSnakeSeg(p.x,p.y,p.ang,G.snake[i].c,i);
   }
@@ -1108,19 +1125,49 @@ function draw(){
 
   // tray
   const slots=traySlots();
-  ctx.fillStyle='rgba(122,144,178,0.5)';
-  rr(A.tray.x+W*0.015,A.tray.y-2,W*0.97,A.tray.h+4,16); ctx.fill();
+  ctx.fillStyle='rgba(122,144,178,0.35)';
+  rr(A.tray.x+W*0.015,A.tray.y-2,W*0.97,A.tray.h+4,18); ctx.fill();
   for(const s of slots){
-    ctx.fillStyle=s.kind==='open'?'rgba(84,106,142,0.55)':'rgba(70,88,120,0.5)';
-    rr(s.x,s.y,s.s,s.s,10); ctx.fill();
-    ctx.strokeStyle='rgba(255,255,255,0.35)'; ctx.lineWidth=1.5;
-    rr(s.x+1,s.y+1,s.s-2,s.s-2,9); ctx.stroke();
-    if(s.kind!=='open'){
-      ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.font=`700 ${Math.max(9,s.s*0.22)}px system-ui`;
+    const cx=s.x+s.s/2;
+    if(s.kind==='open'){
+      ctx.fillStyle='rgba(84,106,142,0.42)';
+      rr(s.x,s.y,s.s,s.s,12); ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,0.30)'; ctx.lineWidth=1.5;
+      rr(s.x+1,s.y+1,s.s-2,s.s-2,11); ctx.stroke();
+    } else {
+      ctx.fillStyle='rgba(56,72,102,0.5)';
+      rr(s.x,s.y,s.s,s.s,12); ctx.fill();
+      ctx.save();
+      ctx.strokeStyle='rgba(255,255,255,0.4)'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
+      rr(s.x+1.5,s.y+1.5,s.s-3,s.s-3,11); ctx.stroke();
+      ctx.restore();
+      // vector padlock (emoji glyphs are unreliable in canvas on some phones)
+      const ps=s.s*0.15, ly=s.y+s.s*0.36;
+      ctx.strokeStyle='rgba(255,255,255,0.8)'; ctx.lineWidth=ps*0.45; ctx.lineCap='round';
+      ctx.beginPath(); ctx.arc(cx,ly-ps*0.45,ps*0.65,Math.PI,0); ctx.stroke();
+      ctx.fillStyle='rgba(255,255,255,0.88)';
+      rr(cx-ps,ly-ps*0.5,ps*2,ps*1.45,ps*0.4); ctx.fill();
+      ctx.fillStyle='rgba(56,72,102,0.9)';
+      ctx.beginPath(); ctx.arc(cx,ly+ps*0.2,ps*0.26,0,7); ctx.fill();
+      // price / unlock label
       ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText('🔒',s.x+s.s/2,s.y+s.s*0.36);
-      ctx.font=`800 ${Math.max(8,s.s*0.2)}px system-ui`;
-      ctx.fillText(s.kind==='lv5'?'Lv 6':'🪙500',s.x+s.s/2,s.y+s.s*0.72);
+      if(s.kind==='lv5'){
+        ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.font=`800 ${Math.max(9,s.s*0.2)}px system-ui`;
+        ctx.fillText('Lv 6',cx,s.y+s.s*0.76);
+      } else {
+        const can=save.coins>=PRICES.slot5;
+        const pw=s.s*0.78, ph=Math.max(14,s.s*0.26), py=s.y+s.s*0.76;
+        ctx.fillStyle=can?'#67c257':'#f0a41c';
+        rr(cx-pw/2,py-ph/2,pw,ph,ph/2); ctx.fill();
+        ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.lineWidth=1.2;
+        rr(cx-pw/2,py-ph/2,pw,ph,ph/2); ctx.stroke();
+        ctx.fillStyle='#ffe9b0';
+        ctx.beginPath(); ctx.arc(cx-pw*0.28,py,ph*0.28,0,7); ctx.fill();
+        ctx.strokeStyle='#c8860a'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.arc(cx-pw*0.28,py,ph*0.28,0,7); ctx.stroke();
+        ctx.fillStyle='#fff'; ctx.font=`900 ${Math.max(9,ph*0.62)}px system-ui`;
+        ctx.fillText('500',cx+pw*0.1,py+0.5);
+      }
     }
   }
 
@@ -1232,6 +1279,7 @@ function frame(t){
 
 // ---------- boot ----------
 resize();
+$('gearBtn').innerHTML=ICONS.gear;
 updateHud();
 showMenu();
 requestAnimationFrame(frame);

@@ -4,9 +4,9 @@ A knitted-wool puzzle game inspired by *Wool Crush*: pull wool bolts off the boa
 
 Everything lives in a single dependency-free `index.html`. Open it in any browser (works great on phones) and play.
 
-| Level 1 | Level 14 |
+| Level 14 | Level 18 |
 |---|---|
-| ![Level 1](docs/screenshot-level1.png) | ![Level 14](docs/screenshot-level14.png) |
+| ![Level 14](docs/screenshot-level14.png) | ![Level 18](docs/screenshot-level18.png) |
 
 ## How to play
 
@@ -38,6 +38,7 @@ Difficulty ramps with the level number:
 - board grows **~16 → ~52 bolts' worth of cells** (dragon ~32 → ~104 segments)
 - colors **3 → 7**, and same-color runs shorten
 - arrows point outward early, then get increasingly knotted
+- **diagonal arrows** appear from level 9, on more and more bolts
 - harder board shapes (triangle, ring) only appear at higher levels
 
 Progress (level, coins, unlocked slots, sound) is saved in `localStorage`.
