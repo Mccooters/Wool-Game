@@ -171,7 +171,7 @@ function tone(f0,f1,dur,type,vol,delay=0){
 const sfx = {
   pop:   ()=>tone(520,900,0.09,'square',0.16),
   land:  ()=>tone(240,170,0.08,'sine',0.28),
-  pew:   ()=>tone(1350,420,0.06,'sawtooth',0.07),
+  pew:   ()=>{ tone(1900,300,0.14,'sawtooth',0.05); tone(950,150,0.14,'sine',0.05); },
   chomp: ()=>{ tone(330,110,0.12,'sawtooth',0.2); tone(95,55,0.11,'square',0.22); },
   deny:  ()=>tone(150,110,0.1,'square',0.16),
   click: ()=>tone(720,720,0.05,'square',0.1),
@@ -845,7 +845,7 @@ function update(dt){
   for(const p of G.pieces){
     if(p.reload>0) p.reload-=dt;
     if(!p.shot) continue;
-    p.shot.t+=dt/0.18;
+    p.shot.t+=dt/0.22;
     if(p.shot.t>=1) impact(p);
   }
   G.comboT=(G.comboT||0)-dt;
@@ -1269,7 +1269,7 @@ function draw(){
       ctx.restore();
     }
   }
-  // shells in flight: tracer rounds from cannon to car, with a muzzle flash
+  // lasers: wavy energy beams from each firing turret to its target car
   for(const p of G.pieces){
     if(!p.shot) continue;
     const idx=G.snake.indexOf(p.shot.seg);
@@ -1278,20 +1278,28 @@ function draw(){
     const sp=spoolPos(p);
     const C=PALETTE[p.color];
     const t=clamp(p.shot.t,0,1);
-    const cx=lerp(sp.x,at.x,t), cy=lerp(sp.y,at.y,t);
-    if(t<0.3){
-      const f=1-t/0.3;
-      drawGlow(sp.x,sp.y,14*f+6,C.l,0.5*f);
+    const dx=at.x-sp.x, dy=at.y-sp.y, len=Math.hypot(dx,dy)||1;
+    const nx=-dy/len, ny=dx/len;                 // perpendicular to the beam
+    const amp=Math.min(len*0.13, G.thick*0.7)*Math.sin(t*Math.PI); // swells then settles
+    const steps=22;
+    // two passes: fat colored glow, then a bright white core
+    for(const pass of [{w:Math.max(5,G.thick*0.34),a:0.32,c:C.m},{w:2,a:0.95,c:'#fff'}]){
+      ctx.strokeStyle=pass.c; ctx.globalAlpha=pass.a; ctx.lineWidth=pass.w;
+      ctx.lineCap='round'; ctx.lineJoin='round';
+      ctx.beginPath();
+      for(let s=0;s<=steps;s++){
+        const f=s/steps;
+        const env=Math.sin(f*Math.PI);           // 0 at both ends, 1 in the middle
+        const wob=Math.sin(f*Math.PI*3 - G.crawlT*26)*amp*env;
+        const wx=sp.x+dx*f+nx*wob, wy=sp.y+dy*f+ny*wob;
+        s?ctx.lineTo(wx,wy):ctx.moveTo(wx,wy);
+      }
+      ctx.stroke();
     }
-    const dx=at.x-sp.x, dy=at.y-sp.y, dd=Math.hypot(dx,dy)||1;
-    const tl=Math.min(26,dd*0.25);
-    ctx.strokeStyle=C.m; ctx.lineWidth=2.2; ctx.lineCap='round';
-    ctx.globalAlpha=0.8;
-    ctx.beginPath(); ctx.moveTo(cx-dx/dd*tl,cy-dy/dd*tl); ctx.lineTo(cx,cy); ctx.stroke();
     ctx.globalAlpha=1;
-    drawGlow(cx,cy,9,C.m,0.5);
-    ctx.fillStyle='#fff';
-    ctx.beginPath(); ctx.arc(cx,cy,2.6,0,7); ctx.fill();
+    // muzzle flare + charging impact bloom on the car
+    drawGlow(sp.x,sp.y,13,C.l,0.55);
+    drawGlow(at.x,at.y,10+t*14,C.m,0.5);
   }
 
   // particles

@@ -4,7 +4,7 @@ A minimal, addictive neon puzzle in the **NEON BASTION / NEON ROGUE** family: ej
 
 Everything lives in a single dependency-free `index.html`. Open it in any browser (works great on phones) and play.
 
-| Menu | Cannons firing (Level 9) |
+| Menu | Turrets lasering the convoy (Level 9) |
 |---|---|
 | ![Menu](docs/screenshot-menu.png) | ![Gameplay](docs/screenshot-play.png) |
 
@@ -13,7 +13,7 @@ Everything lives in a single dependency-free `index.html`. Open it in any browse
 - The **convoy starts offscreen** and rolls down the rails toward the core, more cars streaming in behind the locomotive. If it reaches the core, you lose.
 - **Tap a block** to eject it. A block only slides in its **arrow direction** (diagonals appear at higher levels), and only if the path to the edge is clear — blocked taps flash the piece in the way.
 - An ejected block deploys as a **cannon**: small blocks carry 2 shells, big ones 4.
-- Every cannon automatically fires at **any matching car on screen** — barrels track their targets, shells streak in, and every car destroyed **knocks the train back**. Cannons all fire at once; chain kills build a streak.
+- Every turret automatically fires at **any matching car on screen** — emitters track their targets, a **wavy energy laser** locks on, and every car destroyed **knocks the train back**. Turrets all fire at once; chain kills build a streak.
 - A cannon out of shells discharges (+coins) and frees its slot. A cannon with no on-screen target sits **dimmed**, blocking its slot until its color rolls in.
 
 ### Boosters (cost ◆)
