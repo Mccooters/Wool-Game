@@ -4,13 +4,13 @@ A knitted-wool puzzle game inspired by *Wool Crush*: pull wool bolts off the boa
 
 Everything lives in a single dependency-free `index.html`. Open it in any browser (works great on phones) and play.
 
-| Level 14 | Level 18 |
+| The dragon crawls in (Level 14) | Diagonal arrows (Level 18) |
 |---|---|
-| ![Level 14](docs/screenshot-level14.png) | ![Level 18](docs/screenshot-level18.png) |
+| ![Dragon entering](docs/screenshot-entrance.png) | ![Level 18](docs/screenshot-level18.png) |
 
 ## How to play
 
-- The **wool dragon** crawls along the runway toward the kitty, and more of its body keeps **streaming in from offscreen**. If the head reaches her, you lose.
+- The **wool dragon starts offscreen** and crawls in along the runway toward the kitty, its body streaming in behind it. If the head reaches her, you lose.
 - **Tap a wool bolt** to pull it off the board. A bolt only slides in its **arrow direction**, and only if the path to the edge is clear — blocked bolts wiggle and flash the piece in the way.
 - A pulled bolt becomes a **spool** in the tray: small bolts hold 2 wraps, big ones 4.
 - Every spool automatically plucks its color from **any wool visible on screen** — segments zip out of the body, the body closes up, and each one **drags the dragon back**. Spools can all wind at once.

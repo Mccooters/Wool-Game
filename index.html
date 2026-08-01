@@ -243,8 +243,8 @@ function posAt(s){
 
 // ---------- level generation ----------
 function targetCells(L){ return L>=14 ? 52-randi(0,5) : 13+3*L; }
-function creepFor(L){ return 0.005 + Math.min(0.019, 0.0009*L); }
-function pushFactorFor(L){ return Math.max(0.22, 0.55-0.011*L); }
+function creepFor(L){ return 0.020 + Math.min(0.042, 0.0014*L); }
+function pushFactorFor(L){ return Math.max(0.34, 1.10-0.020*L); }
 function nColorsFor(L){ return L>=24 ? 7 : clamp(3+Math.floor(L/5),3,6); }
 function diagChanceFor(L){ return L<9 ? 0 : Math.min(0.35, 0.04+(L-8)*0.03); }
 function runLenFor(L){ return L<6?randi(2,3) : L<16?randi(1,3) : randi(1,2); }
@@ -424,6 +424,11 @@ function visibleColors(){
 }
 function catParam(){ return path.len-6; }
 function dangerFrac(){ return clamp(1-(catParam()-G.front)/(catParam()-G.startFront),0,1); }
+function dragFront(px){
+  // floor keeps a couple of segments windable at max pushback, but never pulls the dragon IN
+  const floor=path.entryS+G.thick*0.4+G.segLen*2.2;
+  G.frontTarget=Math.max(Math.min(G.frontTarget,floor), G.frontTarget-px);
+}
 function boardOcc(){
   const occ=new Map();
   for(const p of G.pieces) if(p.state==='board')
@@ -438,11 +443,13 @@ function layoutBoard(){
   G.cell=Math.min(a.w/G.cols, a.h/G.rows, 58);
   G.ox=a.x+(a.w-G.cell*G.cols)/2;
   G.oy=a.y+(a.h-G.cell*G.rows)/2;
-  G.startFront=path.len*0.70;
   // the visible window shrinks at higher levels; the rest of the body waits offscreen
   const visTarget=clamp(30-G.level*0.45, 15, 30);
-  G.segLen=clamp(G.startFront*0.94/visTarget, 10, 24);
-  G.thick=clamp(G.segLen*1.5, 12, A.snake.h*0.15);
+  const usable=Math.max(1,catParam()-path.entryS);
+  G.segLen=clamp(usable*0.94/visTarget, 12, 36);
+  G.thick=clamp(G.segLen*1.4, 12, A.snake.h*0.15);
+  // the whole dragon starts offscreen and crawls in
+  G.startFront=path.entryS-G.thick*2;
 }
 
 function startLevel(){
@@ -457,7 +464,7 @@ function startLevel(){
   layoutBoard();
   G.front=G.frontTarget=G.startFront;
   G.creep=path.len*creepFor(G.level)*rand(0.95,1.05);
-  G.graceT=4;
+  G.graceT=2;
   pieces.forEach((p,i)=>{ p.drop={t:-i*0.018-0.05}; p.flash=0; p.bump=null; });
   updateHud();
   if(!save.seenHow){ save.seenHow=true; persist(); showHow(true); }
@@ -548,7 +555,7 @@ function startWinds(){
       const seg=G.snake[i], at=segXY(i,seg);
       G.snake.splice(i,1);
       for(let j=i;j<G.snake.length;j++) G.snake[j].ofs+=G.segLen;  // body zips closed
-      G.frontTarget-=G.segLen*pushFactorFor(G.level);  // unraveling drags the dragon back
+      dragFront(G.segLen*pushFactorFor(G.level));      // unraveling drags the dragon back
       G.mouthOpen=1;
       p.ball={t:0, x0:at.x, y0:at.y};
       windFx(at,seg.c);
@@ -609,7 +616,7 @@ const PRICES={back:40,chomp:50,fetch:60,slot:80,revive:100,slot5:500};
 function spend(n){ if(save.coins<n){ toast('Not enough coins!'); sfx.deny(); return false; }
   save.coins-=n; persist(); updateHud(); sfx.coin(); G.usedAnyBoost=true; return true; }
 function pushBack(frac){
-  G.frontTarget=Math.max(path.len*0.10, G.frontTarget-path.len*frac);
+  dragFront(path.len*frac);
   G.graceT=Math.max(G.graceT,1.2);
   const h=headPos();
   for(let i=0;i<10;i++) G.particles.push({x:h.x,y:h.y,vx:rand(-140,-40),vy:rand(-60,60),g:0,r:rand(2,4),c:'#ffffff',t:0,dur:rand(.3,.5)});
@@ -640,7 +647,7 @@ function boostChomp(){
     const seg=G.snake.shift();
     for(const s2 of G.snake) s2.ofs+=G.segLen;
     consumeCapacity(seg.c,1);
-    G.frontTarget-=G.segLen;
+    dragFront(G.segLen);
     windFx(headPos(),seg.c);
   }
   G.mouthOpen=1; sfx.chomp();
