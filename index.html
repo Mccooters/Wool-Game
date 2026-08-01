@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#05060d">
-<title>WOOL CRUSH — Endless Unravel</title>
+<title>NEON SERPENT — Endless Drain</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body { height:100%; overflow:hidden; background:#05060d; color:#e8f4ff;
@@ -39,7 +39,8 @@
     background:rgba(10,16,34,.86); border:1px solid rgba(120,200,255,.28);
     box-shadow:0 0 16px rgba(0,140,255,.12); transition:border-color .15s, box-shadow .15s, opacity .15s; }
   .boost:active { transform:translateY(1px); border-color:#7ef0ff; box-shadow:0 0 22px rgba(90,220,255,.4); }
-  .boost .em { font-size:21px; line-height:1.05; filter:drop-shadow(0 0 6px rgba(120,220,255,.35)); }
+  .boost .em { line-height:0; filter:drop-shadow(0 0 6px rgba(120,220,255,.35)); }
+  .boost .em svg { display:inline-block; }
   .boost .nm { font-size:9px; font-weight:700; color:#8fd8ff; margin-top:3px; letter-spacing:1.6px; text-transform:uppercase; }
   .boost .cost { position:absolute; top:-8px; right:-6px; background:rgba(10,16,34,.95);
     border:1px solid rgba(255,215,106,.5); border-radius:5px; font-size:10px; font-weight:800; color:#ffd76a; padding:1px 5px;
@@ -82,8 +83,8 @@
     font-size:12px; padding:10px 0; letter-spacing:3px; }
   .btn.off { opacity:.35; pointer-events:none; }
   .howrow { display:flex; align-items:center; gap:12px; text-align:left; margin:12px 0; }
-  .howrow .ic { font-size:24px; width:36px; text-align:center; flex:none;
-    filter:drop-shadow(0 0 8px rgba(120,220,255,.4)); }
+  .howrow .ic { font-size:15px; font-weight:800; letter-spacing:1px; color:#59d8ff; width:30px;
+    text-align:center; flex:none; text-shadow:0 0 12px rgba(80,190,255,.6); }
   .howrow div { color:#a9c8e6; font-size:12px; line-height:1.55; letter-spacing:.6px; }
   .howrow b { color:#dffcff; }
   .logo { font-size:40px; line-height:1; margin-bottom:6px; filter:drop-shadow(0 0 16px rgba(120,220,255,.45)); }
@@ -102,10 +103,10 @@
       <button class="iconbtn" id="gearBtn" aria-label="Settings"></button>
     </div>
     <div id="boosters">
-      <div class="boost" data-act="back"><span class="cost">40</span><div class="em">⏪</div><div class="nm">Back</div></div>
-      <div class="boost" data-act="chomp"><span class="cost">50</span><div class="em">🔥</div><div class="nm">Chomp</div></div>
-      <div class="boost" data-act="fetch"><span class="cost">60</span><div class="em">🧲</div><div class="nm">Fetch</div></div>
-      <div class="boost" data-act="slot"><span class="cost">80</span><div class="em">🧺</div><div class="nm">+Slot</div></div>
+      <div class="boost" data-act="back"><span class="cost">40</span><div class="em"><svg width="20" height="20" viewBox="0 0 24 24" fill="#8fd8ff"><path d="M11 6v12L2.5 12 11 6zm9.5 0v12L12 12l8.5-6z"/></svg></div><div class="nm">Back</div></div>
+      <div class="boost" data-act="chomp"><span class="cost">50</span><div class="em"><svg width="20" height="20" viewBox="0 0 24 24" fill="#ffd76a"><path d="M13 2L4.5 13.5H11L9.5 22 19 10h-6.5L13 2z"/></svg></div><div class="nm">Purge</div></div>
+      <div class="boost" data-act="fetch"><span class="cost">60</span><div class="em"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8fd8ff" stroke-width="2"><circle cx="12" cy="12" r="5.5"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/></svg></div><div class="nm">Pull</div></div>
+      <div class="boost" data-act="slot"><span class="cost">80</span><div class="em"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8fd8ff" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8.5v7M8.5 12h7"/></svg></div><div class="nm">+Slot</div></div>
     </div>
     <div id="toasts"></div>
     <div id="overlay"><div class="card" id="card"></div></div>
@@ -115,11 +116,11 @@
 <script>
 'use strict';
 /* =========================================================
-   Wool Crush — Infinite
-   Pull knitted bolts from the board (arrows show the only
-   exit direction), collect them in the tray, and feed the
-   wool dragon segment by segment. Endless procedurally
-   generated levels that ramp up in difficulty.
+   NEON SERPENT — Endless Drain
+   Eject arrow blocks from the board (each slides only in its
+   arrow direction), turn them into collectors, and drain the
+   serpent of energy orbs before it reaches the core. Endless
+   procedurally generated levels that ramp up in difficulty.
    ========================================================= */
 
 // ---------- tiny utils ----------
@@ -533,7 +534,7 @@ function tryExtract(p){
     const b=pieceById(blocker); if(b) b.flash=1;
     return;
   }
-  if(occupancyPieces().length>=capacity()){ toast('Tray full!'); sfx.deny(); p.bump={t:0}; return; }
+  if(occupancyPieces().length>=capacity()){ toast('Slots full!'); sfx.deny(); p.bump={t:0}; return; }
   p.slot=freeSlotIndex();
   extract(p,false);
 }
@@ -666,7 +667,7 @@ function boostChomp(){
 }
 function boostFetch(){
   const vis=visibleColors(); if(!vis.length) return;
-  if(occupancyPieces().length>=capacity()){ toast('Tray is full!'); sfx.deny(); return; }
+  if(occupancyPieces().length>=capacity()){ toast('Slots full!'); sfx.deny(); return; }
   // grab a bolt for the color closest to the dragon's head
   let target=null;
   for(const col of vis){
@@ -674,7 +675,7 @@ function boostFetch(){
     if(cands.length){ const occ=boardOcc();
       target=cands.find(q=>exitBlocker(q,occ,G.cols,G.rows)===null)||cands[0]; break; }
   }
-  if(!target){ toast('No matching wool on board'); sfx.deny(); return; }
+  if(!target){ toast('No matching block on board'); sfx.deny(); return; }
   if(!spend(PRICES.fetch)) return;
   target.slot=freeSlotIndex();
   extract(target,true);
@@ -716,9 +717,9 @@ function hideOverlay(){ $('overlay').classList.remove('show'); }
 
 function showMenu(){
   G.phase='menu';
-  overlay(`<div class="logo">🧶🐉</div><h1>Wool Crush</h1>
-    <p style="letter-spacing:5px;color:#79c8ff;margin-top:4px">ENDLESS UNRAVEL</p>
-    <p>Unravel the wool dragon before it reaches the kitty.<br>Endless levels — each one harder than the last.</p>
+  overlay(`<h1>Neon Serpent</h1>
+    <p style="letter-spacing:5px;color:#79c8ff;margin-top:6px">ENDLESS DRAIN</p>
+    <p>Drain the serpent before it reaches the core.<br>Endless levels — each one harder than the last.</p>
     <div class="stat"><span>LV ${G.level}</span><span style="color:#ffd76a">◆ ${save.coins}</span></div>
     <button class="btn" data-act="play">Play Level ${G.level}</button>
     <button class="btn ghost" data-act="how">How to play</button>`);
@@ -726,24 +727,24 @@ function showMenu(){
 }
 function showHow(fromStart){
   overlay(`<h2>How to play</h2>
-    <div class="howrow"><span class="ic">👆</span><div>Tap a wool bolt to pull it out — it only slides in its <b>arrow direction</b>, and the path must be clear.</div></div>
-    <div class="howrow"><span class="ic">🧵</span><div>Pulled bolts become <b>spools</b> in the tray. A spool grabs its color from <b>any wool on screen</b> — when its number hits 0 it pops off and frees the slot.</div></div>
-    <div class="howrow"><span class="ic">🐉</span><div>The dragon crawls toward the kitty, and <b>more body streams in from offscreen</b>. Every segment you wind drags it back — unravel it completely to win!</div></div>
-    <div class="howrow"><span class="ic">💡</span><div>A dimmed spool has no matching wool on screen yet — it clogs its slot until its color crawls in.</div></div>
-    <button class="btn blue" data-act="${fromStart?'resume':'menu'}">Got it!</button>`);
+    <div class="howrow"><span class="ic">01</span><div>Tap a block to eject it — it only slides in its <b>arrow direction</b>, and the path must be clear.</div></div>
+    <div class="howrow"><span class="ic">02</span><div>Ejected blocks become <b>collectors</b>. A collector drains its color from <b>any orb on screen</b> — at 0 it discharges and frees its slot.</div></div>
+    <div class="howrow"><span class="ic">03</span><div>The serpent advances on the core, and <b>more of it streams in from offscreen</b>. Every orb you drain drags it back — empty it to win.</div></div>
+    <div class="howrow"><span class="ic">04</span><div>A dimmed collector has no match on screen yet — it blocks its slot until its color arrives.</div></div>
+    <button class="btn blue" data-act="${fromStart?'resume':'menu'}">Got it</button>`);
 }
 function showWin(reward){
-  overlay(`<div class="logo">😻</div><h2>Dragon unraveled</h2>
+  overlay(`<h2>Serpent drained</h2>
     <div class="big">◆ +${reward}</div>
-    <p>${G.usedAnyBoost?'':'Perfect — no boosters used! (+10)<br>'}The kitty is safe… until Level ${G.level+1}.</p>
+    <p>${G.usedAnyBoost?'':'Perfect — no boosters used (+10)<br>'}The core holds… until Level ${G.level+1}.</p>
     <button class="btn" data-act="next">Next Level</button>`);
 }
 function showLose(){
   const can=save.coins>=PRICES.revive && G.reviveCount<2;
-  overlay(`<div class="logo">😿</div><h2>The dragon got the kitty</h2>
-    <p>It crossed the whole runway. Wind faster — every crushed segment drags it back!</p>
-    <button class="btn gold ${can?'':'off'}" data-act="revive">⏪ Push it way back — ◆ ${PRICES.revive}</button>
-    <button class="btn blue" data-act="retry">↻ Retry Level ${G.level}</button>`);
+  overlay(`<h2>Core lost</h2>
+    <p>The serpent crossed the whole runway. Drain faster — every orb drags it back.</p>
+    <button class="btn gold ${can?'':'off'}" data-act="revive">« Push it way back — ◆ ${PRICES.revive}</button>
+    <button class="btn blue" data-act="retry">Retry Level ${G.level}</button>`);
 }
 function showSettings(){
   overlay(`<h2>Settings</h2>
@@ -786,7 +787,7 @@ cv.addEventListener('pointerdown',e=>{
   for(const s of traySlots()){
     if(s.kind==='coin' && x>=s.x&&x<=s.x+s.s&&y>=s.y&&y<=s.y+s.s){
       if(save.coins>=PRICES.slot5){ save.coins-=PRICES.slot5; save.slot5=true; persist(); sfx.coin(); toast('Permanent slot unlocked!'); updateHud(); }
-      else toast(`Unlock forever: 🪙 ${PRICES.slot5}`);
+      else toast(`Unlock forever: ◆${PRICES.slot5}`);
       return;
     }
   }
@@ -849,7 +850,7 @@ function update(dt){
     const vis=new Set(visibleColors());
     if(occupancyPieces().length>=capacity() &&
        !G.pieces.some(p=>p.state==='tray'&&(p.ball||vis.has(p.color))))
-      toast('Tray clogged! No spool matches the wool on screen');
+      toast('Collectors stalled — no match on screen');
   }
   // fire breath when the dragon is close to the cat
   if(G.phase==='play' && dangerFrac()>0.68 && Math.random()<dt*22){
@@ -896,21 +897,6 @@ function drawBolt(x,y,w,h,colIdx,dir,units,opts={}){
   ctx.strokeStyle=C.m; ctx.lineWidth=1.6; rr(x+0.8,y+0.8,w-1.6,h-1.6,r); ctx.stroke();
   ctx.strokeStyle='rgba(255,255,255,0.10)'; ctx.lineWidth=1;
   rr(x+3,y+3,w-6,h-6,Math.max(2,r-2)); ctx.stroke();
-  // circuit ridges per unit
-  ctx.save(); rr(x,y,w,h,r); ctx.clip();
-  const vertical=h>=w;
-  const n=Math.max(2,Math.round((vertical?h:w)/12));
-  ctx.lineWidth=1; ctx.lineCap='round';
-  ctx.strokeStyle=C.m; ctx.globalAlpha*=0.22;
-  for(let i=1;i<n;i++){
-    const t=i/n;
-    ctx.beginPath();
-    if(vertical){ const yy=y+h*t; ctx.moveTo(x+w*0.14,yy); ctx.lineTo(x+w*0.86,yy); }
-    else { const xx=x+w*t; ctx.moveTo(xx,y+h*0.14); ctx.lineTo(xx,y+h*0.86); }
-    ctx.stroke();
-  }
-  ctx.globalAlpha=opts.alpha!=null?opts.alpha:1;
-  ctx.restore();
   // arrow
   if(dir){
     const [dc,dr]=DIRS[dir];
@@ -943,39 +929,27 @@ function drawBolt(x,y,w,h,colIdx,dir,units,opts={}){
 }
 
 function drawSpool(cx,cy,size,colIdx,units,winding){
+  // collector: dark chip holding a glowing orb + remaining-capacity badge
   const C=PALETTE[colIdx];
-  const w=size, h=size*0.72;
-  const spin=winding?G.crawlT*9:0;
-  if(winding) drawGlow(cx,cy,size*0.85,C.m,0.4);
+  if(winding) drawGlow(cx,cy,size*0.95,C.m,0.45);
   ctx.save();
   ctx.translate(cx,cy);
-  // end flanges: dark chips with cyan edges
-  ctx.fillStyle='#101a33'; ctx.strokeStyle='rgba(120,200,255,0.55)'; ctx.lineWidth=1.4;
-  for(const sx of [-w*0.42,w*0.42]){
-    rr(sx-w*0.075,-h*0.5,w*0.15,h,w*0.07); ctx.fill(); ctx.stroke();
-  }
-  // wound yarn belly: neon core
-  const belly=h*0.40;
-  const gr=ctx.createLinearGradient(0,-belly,0,belly);
-  gr.addColorStop(0,C.m); gr.addColorStop(0.6,C.d); gr.addColorStop(1,'#0a1122');
+  const w=size*0.94, r=size*0.15;
+  ctx.fillStyle='rgba(10,16,34,0.92)';
+  rr(-w/2,-w/2,w,w,r); ctx.fill();
+  ctx.strokeStyle=C.m; ctx.lineWidth=1.6;
+  rr(-w/2+0.8,-w/2+0.8,w-1.6,w-1.6,r); ctx.stroke();
+  const orbR=size*0.25*(winding?1+Math.sin(G.crawlT*10)*0.09:1);
+  drawGlow(0,0,orbR*2.1,C.m,0.5);
+  const gr=ctx.createRadialGradient(0,-orbR*0.2,orbR*0.12,0,0,orbR);
+  gr.addColorStop(0,'#fff'); gr.addColorStop(0.4,C.l); gr.addColorStop(1,C.m);
   ctx.fillStyle=gr;
-  rr(-w*0.36,-belly,w*0.72,belly*2,belly*0.8); ctx.fill();
-  ctx.strokeStyle=C.m; ctx.lineWidth=1.5; rr(-w*0.36,-belly,w*0.72,belly*2,belly*0.8); ctx.stroke();
-  // winding strands
-  ctx.save(); rr(-w*0.36,-belly,w*0.72,belly*2,belly*0.8); ctx.clip();
-  ctx.strokeStyle=C.l; ctx.globalAlpha=0.4; ctx.lineWidth=Math.max(1.5,size*0.05); ctx.lineCap='round';
-  for(let i=0;i<4;i++){
-    const xx=-w*0.30+((i*w*0.19+spin*4)%(w*0.68));
-    ctx.beginPath(); ctx.moveTo(xx-belly*0.5,belly); ctx.lineTo(xx+belly*0.5,-belly); ctx.stroke();
-  }
-  ctx.globalAlpha=1;
-  ctx.restore();
-  // remaining-capacity badge
-  ctx.fillStyle='rgba(10,16,34,0.95)'; ctx.strokeStyle=C.m; ctx.lineWidth=1.6;
-  ctx.beginPath(); ctx.arc(w*0.36,-h*0.44,size*0.23,0,7); ctx.fill(); ctx.stroke();
-  ctx.fillStyle='#fff'; ctx.font=`800 ${Math.max(10,size*0.28)}px Menlo,monospace`;
+  ctx.beginPath(); ctx.arc(0,0,orbR,0,7); ctx.fill();
+  ctx.fillStyle='rgba(10,16,34,0.95)'; ctx.strokeStyle=C.m; ctx.lineWidth=1.4;
+  ctx.beginPath(); ctx.arc(w*0.40,-w*0.40,size*0.20,0,7); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#fff'; ctx.font=`800 ${Math.max(10,size*0.25)}px Menlo,monospace`;
   ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText(units,w*0.36,-h*0.44+0.5);
+  ctx.fillText(units,w*0.40,-w*0.40+0.5);
   ctx.restore();
 }
 
@@ -1010,78 +984,53 @@ function drawDragonHead(){
   const end=posAt(G.front);
   const R=headR();
   const open=G.mouthOpen;
-  drawGlow(end.x,end.y,R*1.7,'#ff3d71',0.35);
+  // faceless energy head: a tapered hot streak with a white-hot core
+  drawGlow(end.x,end.y,R*1.9,'#ff3d71',0.40);
   ctx.save();
   ctx.translate(end.x,end.y); ctx.rotate(end.ang);
-  if(Math.cos(end.ang)<0) ctx.scale(1,-1);   // keep the face upright when walking left
-  ctx.translate(R*0.5,Math.sin(G.crawlT*2.2)*1.4);
-  // head: dark core with a hot neon rim — the threat reads red/pink
+  ctx.translate(Math.sin(G.crawlT*2.2)*0.8,0);
   const C={m:'#ff3d71',d:'#701a33',l:'#ff9ab4'};
-  const gr=ctx.createLinearGradient(0,-R,0,R);
-  gr.addColorStop(0,C.m); gr.addColorStop(0.55,C.d); gr.addColorStop(1,'#12060c');
+  const gr=ctx.createLinearGradient(-R,0,R*1.25,0);
+  gr.addColorStop(0,'#12060c'); gr.addColorStop(0.45,C.d); gr.addColorStop(1,C.m);
   ctx.fillStyle=gr;
-  ctx.beginPath(); ctx.ellipse(0,0,R,R*0.88,0,0,7); ctx.fill();
-  ctx.strokeStyle=C.m; ctx.lineWidth=2;
-  ctx.beginPath(); ctx.ellipse(0,0,R-1,R*0.88-1,0,0,7); ctx.stroke();
-  // horns: cyan neon spikes
-  ctx.fillStyle='rgba(10,25,40,0.9)'; ctx.strokeStyle='#6affd8'; ctx.lineWidth=1.5;
-  for(const [hx,tilt] of [[-R*0.32,-0.35],[R*0.12,0.1]]){
-    ctx.save(); ctx.translate(hx,-R*0.72); ctx.rotate(tilt);
-    ctx.beginPath(); ctx.moveTo(-R*0.16,0);
-    ctx.quadraticCurveTo(-R*0.14,-R*0.5,R*0.06,-R*0.62);
-    ctx.quadraticCurveTo(R*0.12,-R*0.25,R*0.2,R*0.05);
-    ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
-  }
-  // snout
-  ctx.fillStyle='rgba(30,10,20,0.9)';
-  ctx.beginPath(); ctx.ellipse(R*0.62,R*0.18,R*0.48,R*0.34,0,0,7); ctx.fill();
-  ctx.strokeStyle=C.l; ctx.lineWidth=1.5; ctx.stroke();
-  // mouth: smile normally, wide open when chomping
+  ctx.beginPath();
+  ctx.moveTo(-R*0.7,-R*0.72);
+  ctx.quadraticCurveTo(R*0.9,-R*0.62,R*1.25,0);
+  ctx.quadraticCurveTo(R*0.9,R*0.62,-R*0.7,R*0.72);
+  ctx.quadraticCurveTo(-R*0.30,0,-R*0.7,-R*0.72);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle=C.m; ctx.lineWidth=2; ctx.lineJoin='round'; ctx.stroke();
+  drawGlow(R*0.30,0,R*0.8,'#ffffff',0.45);
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.arc(R*0.30,0,R*0.28,0,7); ctx.fill();
+  // drain flash: expanding ring on each orb consumed
   if(open>0.05){
-    ctx.fillStyle='#ff2f6e';
-    ctx.beginPath();
-    ctx.moveTo(R*0.42,R*0.2);
-    ctx.arc(R*0.42,R*0.2,R*0.55,-0.55*open,0.75*open);
-    ctx.closePath(); ctx.fill();
-  } else {
-    ctx.strokeStyle=C.l; ctx.lineWidth=Math.max(1.5,R*0.06); ctx.lineCap='round';
-    ctx.beginPath(); ctx.arc(R*0.55,R*0.22,R*0.28,0.45,2.1); ctx.stroke();
+    ctx.strokeStyle=`rgba(255,154,180,${open*0.9})`; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.arc(R*0.25,0,R*(0.55+(1-open)*1.0),0,7); ctx.stroke();
   }
-  // nostrils
-  ctx.fillStyle=C.l;
-  ctx.beginPath(); ctx.arc(R*0.92,R*0.06,R*0.055,0,7); ctx.arc(R*0.99,R*0.24,R*0.055,0,7); ctx.fill();
-  // eye: glowing white
-  drawGlow(R*0.22,-R*0.30,R*0.5,'#dffcff',0.5);
-  ctx.fillStyle='#eafcff';
-  ctx.beginPath(); ctx.ellipse(R*0.18,-R*0.32,R*0.26,R*0.31,-0.12,0,7); ctx.fill();
-  ctx.fillStyle='#0a1122';
-  ctx.beginPath(); ctx.arc(R*0.27,-R*0.28,R*0.13,0,7); ctx.fill();
-  ctx.fillStyle='#7ef0ff';
-  ctx.beginPath(); ctx.arc(R*0.31,-R*0.33,R*0.05,0,7); ctx.fill();
   ctx.restore();
 }
 
 function drawCat(){
+  // the core: a cyan crystal with a rotating containment ring
   const c=catPos(), danger=dangerFrac();
-  const s=Math.max(16,A.snake.h*0.10);
-  const tr=danger>0.68?rand(-1.6,1.6):0;
-  const x=c.x+tr, y=c.y+(danger>0.68?rand(-1,1):0);
-  // the kitty is the core: a cyan hologram to defend
-  drawGlow(x,y-s*0.1,s*1.8,'#00e0ff',0.30);
-  ctx.save(); ctx.translate(x,y); ctx.scale(-1,1);
-  ctx.fillStyle='rgba(8,20,36,0.92)'; ctx.strokeStyle='#4dd8ff'; ctx.lineWidth=1.8; ctx.lineJoin='round';
-  ctx.beginPath(); ctx.ellipse(0,s*0.28,s*0.72,s*0.6,0,0,7); ctx.fill(); ctx.stroke();   // body
-  ctx.beginPath(); ctx.arc(0,-s*0.42,s*0.52,0,7); ctx.fill(); ctx.stroke();              // head
-  ctx.beginPath(); ctx.moveTo(-s*0.45,-s*0.72); ctx.lineTo(-s*0.32,-s*1.1); ctx.lineTo(-s*0.12,-s*0.8); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(s*0.45,-s*0.72); ctx.lineTo(s*0.32,-s*1.1); ctx.lineTo(s*0.12,-s*0.8); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.strokeStyle='rgba(120,220,255,0.5)'; ctx.lineWidth=1.5; ctx.lineCap='round';
-  ctx.beginPath(); ctx.moveTo(-s*0.2,s*0.05); ctx.lineTo(s*0.2,s*0.05); ctx.stroke();
-  const blink=G.catBlink<0;
-  ctx.fillStyle='#dffcff';
-  if(blink){ ctx.fillRect(-s*0.28,-s*0.48,s*0.18,2); ctx.fillRect(s*0.1,-s*0.48,s*0.18,2); }
-  else { ctx.beginPath(); ctx.arc(-s*0.19,-s*0.45,s*0.08,0,7); ctx.arc(s*0.19,-s*0.45,s*0.08,0,7); ctx.fill(); }
-  ctx.fillStyle='#ff6be8';
-  ctx.beginPath(); ctx.moveTo(0,-s*0.32); ctx.lineTo(-s*0.07,-s*0.22); ctx.lineTo(s*0.07,-s*0.22); ctx.closePath(); ctx.fill();
+  const s=Math.max(15,A.snake.h*0.085);
+  const flick=danger>0.68?0.7+Math.random()*0.3:1;
+  drawGlow(c.x,c.y,s*2.6,'#00e0ff',0.35*flick);
+  ctx.save(); ctx.translate(c.x,c.y);
+  ctx.save();
+  ctx.rotate(G.crawlT*0.7);
+  ctx.strokeStyle=`rgba(90,216,255,${0.5*flick})`; ctx.lineWidth=1.5; ctx.setLineDash([5,7]);
+  ctx.beginPath(); ctx.arc(0,0,s*1.35,0,7); ctx.stroke();
+  ctx.restore();
+  const pu=1+Math.sin(G.crawlT*2.5)*0.06;
+  ctx.rotate(Math.PI/4);
+  const d=s*0.95*pu;
+  ctx.fillStyle='rgba(8,20,36,0.92)'; ctx.strokeStyle='#4dd8ff'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.rect(-d/2,-d/2,d,d); ctx.fill(); ctx.stroke();
+  ctx.fillStyle=danger>0.68?'#ff6be8':'#9ff4ff';
+  const d2=d*0.42;
+  ctx.fillRect(-d2/2,-d2/2,d2,d2);
   ctx.restore();
 }
 
@@ -1299,6 +1248,15 @@ function draw(){
     ctx.fillRect(-c.r,-c.r*0.6,c.r*2,c.r*1.2); ctx.restore();
   }
   ctx.globalAlpha=1;
+  // drain streak readout
+  if(G.windCombo>=5 && G.phase==='play'){
+    ctx.save();
+    ctx.fillStyle='#ffbe3d'; ctx.font='800 20px Menlo,monospace';
+    ctx.textAlign='right'; ctx.textBaseline='alphabetic';
+    ctx.shadowColor='rgba(255,170,40,0.8)'; ctx.shadowBlur=14;
+    ctx.fillText('x'+G.windCombo, W-14, A.board.y-6);
+    ctx.restore();
+  }
   // red edge vignette when the dragon closes in
   if(G.phase==='play'){
     const danger=dangerFrac();
