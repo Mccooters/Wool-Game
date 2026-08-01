@@ -972,14 +972,20 @@ function drawSpool(cx,cy,size,colIdx,units,firing,aimAng){
   ctx.restore();
 }
 
+const CAR_T=()=>G.thick*0.82;
+const CAR_L=()=>G.segLen*0.72;    // shorter than the segment spacing so cars never overlap
 function drawSnakeSeg(x,y,ang,colIdx,i){
-  // a train car, top-down: symmetric rounded wagon with a glowing cargo bay
+  // a train car, top-down: separate rounded wagon linked by a coupler
   const C=PALETTE[colIdx];
-  const L=G.segLen*1.26, T=G.thick*0.82;
-  drawGlow(x,y,T*0.8,C.m,0.22);
+  const L=CAR_L(), T=CAR_T();
   ctx.save();
   ctx.translate(x,y); ctx.rotate(ang);
-  const r=Math.min(L,T)*0.24;
+  // coupler stub reaching forward to the car ahead (drawn under the next body)
+  const gap=G.segLen-L;
+  ctx.strokeStyle='rgba(120,200,255,0.4)'; ctx.lineWidth=Math.max(1.5,T*0.14); ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(L/2,0); ctx.lineTo(L/2+gap*0.92,0); ctx.stroke();
+  drawGlow(0,0,T*0.75,C.m,0.22);
+  const r=Math.min(L,T)*0.30;
   ctx.fillStyle='rgba(10,16,34,0.94)';
   rr(-L/2,-T/2,L,T,r); ctx.fill();
   const gr=ctx.createLinearGradient(0,-T/2,0,T/2);
@@ -991,7 +997,7 @@ function drawSnakeSeg(x,y,ang,colIdx,i){
   rr(-L/2+0.8,-T/2+0.8,L-1.6,T-1.6,r); ctx.stroke();
   // cargo bay
   ctx.fillStyle=C.m; ctx.globalAlpha=0.85;
-  rr(-L*0.22,-T*0.22,L*0.44,T*0.44,2); ctx.fill();
+  rr(-L*0.26,-T*0.24,L*0.52,T*0.48,2); ctx.fill();
   ctx.globalAlpha=1;
   ctx.restore();
 }
@@ -1000,30 +1006,30 @@ function drawDragonHead(){
   const end=posAt(G.front);
   const R=headR();
   const open=G.mouthOpen;
-  // the locomotive, top-down: a sleek bullet nose with a headlight beam
-  drawGlow(end.x,end.y,R*1.8,'#ff3d71',0.38);
+  // the locomotive, top-down: same width as a car, just longer, tapering to a nose
+  drawGlow(end.x,end.y,R*1.7,'#ff3d71',0.38);
   ctx.save();
   ctx.translate(end.x,end.y); ctx.rotate(end.ang);
   const C={m:'#ff3d71',d:'#701a33',l:'#ff9ab4'};
-  const L=R*2.3, T=R*1.25;
+  const T=CAR_T(), L=G.segLen*1.2;
   // headlight beam
   const flick=0.10+Math.sin(G.crawlT*13)*0.02;
   ctx.fillStyle=`rgba(255,240,220,${flick})`;
   ctx.beginPath();
   ctx.moveTo(L*0.56,0);
-  ctx.lineTo(L*0.56+R*2.5,-R*0.7);
-  ctx.lineTo(L*0.56+R*2.5,R*0.7);
+  ctx.lineTo(L*0.56+T*2.6,-T*0.85);
+  ctx.lineTo(L*0.56+T*2.6,T*0.85);
   ctx.closePath(); ctx.fill();
-  // hull: rounded body tapering to a bullet nose, symmetric about the track
+  // hull: rounded body tapering to a nose, symmetric about the track
   const gr=ctx.createLinearGradient(-L/2,0,L*0.6,0);
   gr.addColorStop(0,'#12060c'); gr.addColorStop(0.55,C.d); gr.addColorStop(1,C.m);
-  ctx.fillStyle=gr; ctx.strokeStyle=C.m; ctx.lineWidth=2; ctx.lineJoin='round';
-  const r=T*0.28;
+  ctx.fillStyle=gr; ctx.strokeStyle=C.m; ctx.lineWidth=1.8; ctx.lineJoin='round';
+  const r=T*0.34;
   ctx.beginPath();
   ctx.moveTo(-L*0.5+r,-T*0.5);
-  ctx.lineTo(L*0.08,-T*0.5);
-  ctx.quadraticCurveTo(L*0.46,-T*0.44,L*0.58,0);
-  ctx.quadraticCurveTo(L*0.46,T*0.44,L*0.08,T*0.5);
+  ctx.lineTo(L*0.14,-T*0.5);
+  ctx.quadraticCurveTo(L*0.44,-T*0.46,L*0.56,0);
+  ctx.quadraticCurveTo(L*0.44,T*0.46,L*0.14,T*0.5);
   ctx.lineTo(-L*0.5+r,T*0.5);
   ctx.quadraticCurveTo(-L*0.5,T*0.5,-L*0.5,T*0.5-r);
   ctx.lineTo(-L*0.5,-T*0.5+r);
@@ -1031,14 +1037,17 @@ function drawDragonHead(){
   ctx.closePath(); ctx.fill(); ctx.stroke();
   // canopy: dark slot behind the nose
   ctx.fillStyle='rgba(10,16,34,0.9)';
-  rr(L*0.02,-T*0.28,L*0.18,T*0.56,3); ctx.fill();
+  rr(L*0.04,-T*0.26,L*0.16,T*0.52,3); ctx.fill();
   // center spine
   ctx.strokeStyle='rgba(255,154,180,0.45)'; ctx.lineWidth=1.2;
-  ctx.beginPath(); ctx.moveTo(-L*0.40,0); ctx.lineTo(-L*0.02,0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-L*0.42,0); ctx.lineTo(-L*0.02,0); ctx.stroke();
+  // rear coupler stub toward the first car
+  ctx.strokeStyle='rgba(120,200,255,0.4)'; ctx.lineWidth=Math.max(1.5,T*0.14); ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-L*0.5,0); ctx.lineTo(-L*0.5-G.segLen*0.16,0); ctx.stroke();
   // headlight
-  drawGlow(L*0.56,0,R*0.6,'#ffffff',0.5);
+  drawGlow(L*0.56,0,T*0.7,'#ffffff',0.5);
   ctx.fillStyle='#fff';
-  ctx.beginPath(); ctx.arc(L*0.54,0,R*0.15,0,7); ctx.fill();
+  ctx.beginPath(); ctx.arc(L*0.52,0,T*0.16,0,7); ctx.fill();
   ctx.restore();
 }
 
