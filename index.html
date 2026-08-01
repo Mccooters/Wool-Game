@@ -277,14 +277,16 @@ function posAt(s){
 }
 
 // ---------- level generation ----------
-function targetCells(L){ return L>=14 ? 52-randi(0,5) : 13+3*L; }
-function creepFor(L){ return 0.020 + Math.min(0.037, 0.0013*L); }
-function pushFactorFor(L){ return Math.max(0.34, 1.10-0.020*L); }
-function nColorsFor(L){ return L>=24 ? 7 : clamp(3+Math.floor(L/5),3,6); }
-function diagChanceFor(L){ return L<9 ? 0 : Math.min(0.35, 0.04+(L-8)*0.03); }
-function runLenFor(L){ return L<6?randi(2,3) : L<16?randi(1,3) : randi(1,2); }
-function windowFor(L,slots){ return clamp(1+Math.floor(L/6),1,Math.min(2,slots-1)); }
-function doubleRatioFor(L){ return Math.min(0.25+L*0.03,0.6); }
+// difficulty ramps are deliberately stretched so each mechanic creeps in
+// over many levels rather than spiking in the first dozen
+function targetCells(L){ return L>=20 ? 52-randi(0,5) : 12+2*L; }
+function creepFor(L){ return 0.018 + Math.min(0.036, 0.0009*L); }
+function pushFactorFor(L){ return Math.max(0.34, 1.10-0.013*L); }
+function nColorsFor(L){ return L>=34 ? 7 : clamp(3+Math.floor(L/7),3,6); }
+function diagChanceFor(L){ return L<12 ? 0 : Math.min(0.35, 0.03+(L-11)*0.02); }
+function runLenFor(L){ return L<9?randi(2,3) : L<22?randi(1,3) : randi(1,2); }
+function windowFor(L,slots){ return clamp(1+Math.floor(L/9),1,Math.min(2,slots-1)); }
+function doubleRatioFor(L){ return Math.min(0.22+L*0.02,0.58); }
 
 const SHAPES=['diamond','rect','heart','cross','ring','tri'];
 function shapePool(L){
@@ -480,7 +482,7 @@ function layoutBoard(){
   G.ox=a.x+(a.w-G.cell*G.cols)/2;
   G.oy=a.y+(a.h-G.cell*G.rows)/2;
   // the visible window shrinks at higher levels; the rest of the body waits offscreen
-  const visTarget=clamp(30-G.level*0.45, 15, 30);
+  const visTarget=clamp(30-G.level*0.30, 15, 30);
   const usable=Math.max(1,catParam()-path.entryS);
   G.segLen=clamp(usable*0.94/visTarget, 12, 36);
   G.thick=clamp(G.segLen*1.4, 12, A.snake.h*0.15);

@@ -31,17 +31,17 @@ Coins come from discharged cannons and finished levels (with a no-booster bonus)
 
 Every level is generated on the fly with balanced totals: shell capacity exactly matches the convoy's cars, and a feasibility simulation guarantees the whole board can always be emptied.
 
-Difficulty ramps with the level number:
+Difficulty ramps **gradually** with the level number — each mechanic creeps in over many levels rather than spiking early:
 
-- the convoy rolls faster, while knock-back weakens
+- the convoy rolls faster (caps ~L40), while knock-back slowly weakens
 - the visible window shrinks (more of the train hides offscreen)
-- board grows **~16 → ~52 cells** (convoy ~32 → ~104 cars)
-- colors **3 → 7**, and same-color runs shorten
-- arrows point outward early, then get increasingly knotted; **diagonals** appear from level 9
+- board grows **~14 → ~52 cells** (convoy ~28 → ~104 cars), reaching full size around L20
+- colors **3 → 7** (7th only past L34), and same-color runs shorten
+- arrows point outward early, then get increasingly knotted; **diagonals** appear from level 12
 - harder board shapes (triangle, ring) only appear at higher levels
 
 Progress (level, coins, unlocked slots, sound) is saved in `localStorage`.
 
 ## Development
 
-No build step, no dependencies — edit `index.html` and refresh. A small debug API is exposed on `window.__wool` (state inspection, tapping pieces, fast-forward stepping, level generation), which the Playwright-based checks used during development: generation was verified across levels 1–999 (shell/car parity, solvable order found in ≤ 11 ms), and a slightly-imperfect planning bot at human tap-speed — no boosters, no revives — wins ~100% of levels up to ~32, ~38% at 40, and ~13% at 50, where boosters and revives become part of the strategy.
+No build step, no dependencies — edit `index.html` and refresh. A small debug API is exposed on `window.__wool` (state inspection, tapping pieces, fast-forward stepping, level generation), which the Playwright-based checks used during development: generation was verified across levels 1–999 (shell/car parity, solvable order found in ≤ 11 ms), and a slightly-imperfect planning bot at human tap-speed — no boosters, no revives — holds ~100% of levels into the mid-40s before gradually declining, so a human's climb stays gentle and unhurried, with boosters and revives as the safety net deeper in.
