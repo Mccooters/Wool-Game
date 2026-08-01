@@ -555,7 +555,7 @@ function spoolPos(p){
 }
 function segXY(i,seg){
   const p=posAt(Math.max(0.5,segS(i,seg)));
-  return {x:p.x, y:p.y+Math.sin(G.crawlT*2.2+i*0.65)*1.4};
+  return {x:p.x, y:p.y};
 }
 function startShots(){
   if(G.phase!=='play') return;
@@ -973,31 +973,25 @@ function drawSpool(cx,cy,size,colIdx,units,firing,aimAng){
 }
 
 function drawSnakeSeg(x,y,ang,colIdx,i){
-  // a train car: dark wagon with a neon rim, cargo glow, and wheels on the rail
+  // a train car, top-down: symmetric rounded wagon with a glowing cargo bay
   const C=PALETTE[colIdx];
-  const L=G.segLen*1.32, T=G.thick*0.94;
-  drawGlow(x,y,T*0.85,C.m,0.24);
+  const L=G.segLen*1.26, T=G.thick*0.82;
+  drawGlow(x,y,T*0.8,C.m,0.22);
   ctx.save();
   ctx.translate(x,y); ctx.rotate(ang);
-  // wheels
-  ctx.fillStyle='#0a1122'; ctx.strokeStyle='rgba(120,200,255,0.5)'; ctx.lineWidth=1;
-  for(const wx of [-L*0.28,L*0.28]){
-    ctx.beginPath(); ctx.arc(wx,T*0.42,T*0.16,0,7); ctx.fill(); ctx.stroke();
-  }
-  // body
-  const r=Math.min(L,T)*0.18;
-  const gr=ctx.createLinearGradient(0,-T/2,0,T/2);
-  gr.addColorStop(0,C.d); gr.addColorStop(1,'#0a1122');
+  const r=Math.min(L,T)*0.24;
   ctx.fillStyle='rgba(10,16,34,0.94)';
-  rr(-L/2,-T/2,L,T*0.86,r); ctx.fill();
-  ctx.fillStyle=gr; ctx.globalAlpha=0.8;
-  rr(-L/2,-T/2,L,T*0.86,r); ctx.fill();
+  rr(-L/2,-T/2,L,T,r); ctx.fill();
+  const gr=ctx.createLinearGradient(0,-T/2,0,T/2);
+  gr.addColorStop(0,C.d); gr.addColorStop(0.5,'rgba(10,16,34,0)'); gr.addColorStop(1,C.d);
+  ctx.fillStyle=gr; ctx.globalAlpha=0.55;
+  rr(-L/2,-T/2,L,T,r); ctx.fill();
   ctx.globalAlpha=1;
   ctx.strokeStyle=C.m; ctx.lineWidth=1.6;
-  rr(-L/2+0.8,-T/2+0.8,L-1.6,T*0.86-1.6,r); ctx.stroke();
-  // cargo window: a slot of glowing payload
+  rr(-L/2+0.8,-T/2+0.8,L-1.6,T-1.6,r); ctx.stroke();
+  // cargo bay
   ctx.fillStyle=C.m; ctx.globalAlpha=0.85;
-  rr(-L*0.26,-T*0.16,L*0.52,T*0.24,2); ctx.fill();
+  rr(-L*0.22,-T*0.22,L*0.44,T*0.44,2); ctx.fill();
   ctx.globalAlpha=1;
   ctx.restore();
 }
@@ -1006,52 +1000,45 @@ function drawDragonHead(){
   const end=posAt(G.front);
   const R=headR();
   const open=G.mouthOpen;
-  // the locomotive: armored engine with a cowcatcher and a headlight beam
-  drawGlow(end.x,end.y,R*1.9,'#ff3d71',0.38);
+  // the locomotive, top-down: a sleek bullet nose with a headlight beam
+  drawGlow(end.x,end.y,R*1.8,'#ff3d71',0.38);
   ctx.save();
   ctx.translate(end.x,end.y); ctx.rotate(end.ang);
   const C={m:'#ff3d71',d:'#701a33',l:'#ff9ab4'};
-  const L=R*2.1, T=R*1.5;
+  const L=R*2.3, T=R*1.25;
   // headlight beam
   const flick=0.10+Math.sin(G.crawlT*13)*0.02;
   ctx.fillStyle=`rgba(255,240,220,${flick})`;
   ctx.beginPath();
-  ctx.moveTo(L*0.52,0);
-  ctx.lineTo(L*0.52+R*2.6,-R*0.75);
-  ctx.lineTo(L*0.52+R*2.6,R*0.75);
+  ctx.moveTo(L*0.56,0);
+  ctx.lineTo(L*0.56+R*2.5,-R*0.7);
+  ctx.lineTo(L*0.56+R*2.5,R*0.7);
   ctx.closePath(); ctx.fill();
-  // wheels
-  ctx.fillStyle='#0a1122'; ctx.strokeStyle='rgba(255,120,160,0.55)'; ctx.lineWidth=1;
-  for(const wx of [-L*0.30,0,L*0.26]){
-    ctx.beginPath(); ctx.arc(wx,T*0.34,T*0.15,0,7); ctx.fill(); ctx.stroke();
-  }
-  // hull with an angled nose
+  // hull: rounded body tapering to a bullet nose, symmetric about the track
   const gr=ctx.createLinearGradient(-L/2,0,L*0.6,0);
   gr.addColorStop(0,'#12060c'); gr.addColorStop(0.55,C.d); gr.addColorStop(1,C.m);
   ctx.fillStyle=gr; ctx.strokeStyle=C.m; ctx.lineWidth=2; ctx.lineJoin='round';
+  const r=T*0.28;
   ctx.beginPath();
-  ctx.moveTo(-L*0.5,-T*0.40);
-  ctx.lineTo(L*0.18,-T*0.40);
-  ctx.lineTo(L*0.52,-T*0.06);
-  ctx.lineTo(L*0.52,T*0.28);
-  ctx.lineTo(-L*0.5,T*0.28);
+  ctx.moveTo(-L*0.5+r,-T*0.5);
+  ctx.lineTo(L*0.08,-T*0.5);
+  ctx.quadraticCurveTo(L*0.46,-T*0.44,L*0.58,0);
+  ctx.quadraticCurveTo(L*0.46,T*0.44,L*0.08,T*0.5);
+  ctx.lineTo(-L*0.5+r,T*0.5);
+  ctx.quadraticCurveTo(-L*0.5,T*0.5,-L*0.5,T*0.5-r);
+  ctx.lineTo(-L*0.5,-T*0.5+r);
+  ctx.quadraticCurveTo(-L*0.5,-T*0.5,-L*0.5+r,-T*0.5);
   ctx.closePath(); ctx.fill(); ctx.stroke();
-  // cowcatcher
-  ctx.beginPath();
-  ctx.moveTo(L*0.40,T*0.28); ctx.lineTo(L*0.62,T*0.44); ctx.lineTo(L*0.28,T*0.28);
-  ctx.closePath(); ctx.fillStyle=C.d; ctx.fill(); ctx.stroke();
-  // stack
-  ctx.fillStyle='#0a1122'; ctx.strokeStyle=C.l; ctx.lineWidth=1.5;
-  rr(-L*0.16,-T*0.62,L*0.16,T*0.24,2); ctx.fill(); ctx.stroke();
-  // headlight lamp
-  drawGlow(L*0.52,0,R*0.7,'#ffffff',0.5);
+  // canopy: dark slot behind the nose
+  ctx.fillStyle='rgba(10,16,34,0.9)';
+  rr(L*0.02,-T*0.28,L*0.18,T*0.56,3); ctx.fill();
+  // center spine
+  ctx.strokeStyle='rgba(255,154,180,0.45)'; ctx.lineWidth=1.2;
+  ctx.beginPath(); ctx.moveTo(-L*0.40,0); ctx.lineTo(-L*0.02,0); ctx.stroke();
+  // headlight
+  drawGlow(L*0.56,0,R*0.6,'#ffffff',0.5);
   ctx.fillStyle='#fff';
-  ctx.beginPath(); ctx.arc(L*0.50,0,R*0.18,0,7); ctx.fill();
-  // engine sparks while advancing
-  if(G.phase==='play' && Math.random()<0.25){
-    G.particles.push({x:end.x-Math.cos(end.ang)*L*0.1,y:end.y-Math.sin(end.ang)*T*0.45,
-      vx:rand(-20,20),vy:rand(-50,-15),g:60,r:rand(1,2.2),c:'#ff9ab4',t:0,dur:rand(.2,.4)});
-  }
+  ctx.beginPath(); ctx.arc(L*0.54,0,R*0.15,0,7); ctx.fill();
   ctx.restore();
 }
 
@@ -1151,9 +1138,9 @@ function draw(){
 
   drawCat();
 
-  // snake body, tail first (offscreen strip included — it glides in past the edge)
+  // train cars, rear first (offscreen strip included — they glide in past the edge)
   for(let i=G.snake.length-1;i>=0;i--){
-    const s=segS(i,G.snake[i])+Math.sin(G.crawlT*0.9)*G.segLen*0.10;
+    const s=segS(i,G.snake[i]);
     if(s<1) continue;
     const p=posAt(s);
     drawSnakeSeg(p.x,p.y,p.ang,G.snake[i].c,i);
