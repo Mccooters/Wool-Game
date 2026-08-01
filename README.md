@@ -1,12 +1,12 @@
-# 🧶 Wool Crush — Infinite
+# 🧶 WOOL CRUSH — Endless Unravel
 
-A knitted-wool puzzle game inspired by *Wool Crush*: pull wool bolts off the board, turn them into spools, and **unravel the crawling wool dragon before it reaches the kitty** — across endless procedurally generated levels that get progressively harder.
+A neon wool puzzle game inspired by *Wool Crush*, restyled to match the **NEON BASTION / NEON ROGUE** family: pull wool bolts off the board, turn them into spools, and **unravel the crawling wool dragon before it reaches the kitty** — across endless procedurally generated levels that get progressively harder.
 
 Everything lives in a single dependency-free `index.html`. Open it in any browser (works great on phones) and play.
 
-| The dragon crawls in (Level 14) | Diagonal arrows (Level 18) |
+| Menu | Winding (Level 14) |
 |---|---|
-| ![Dragon entering](docs/screenshot-entrance.png) | ![Level 18](docs/screenshot-level18.png) |
+| ![Menu](docs/screenshot-menu.png) | ![Winding](docs/screenshot-winding.png) |
 
 ## How to play
 
