@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#05060d">
-<title>NEON SERPENT — Endless Drain</title>
+<title>NEON DERAIL — Endless Convoy</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body { height:100%; overflow:hidden; background:#05060d; color:#e8f4ff;
@@ -104,7 +104,7 @@
     </div>
     <div id="boosters">
       <div class="boost" data-act="back"><span class="cost">40</span><div class="em"><svg width="20" height="20" viewBox="0 0 24 24" fill="#8fd8ff"><path d="M11 6v12L2.5 12 11 6zm9.5 0v12L12 12l8.5-6z"/></svg></div><div class="nm">Back</div></div>
-      <div class="boost" data-act="chomp"><span class="cost">50</span><div class="em"><svg width="20" height="20" viewBox="0 0 24 24" fill="#ffd76a"><path d="M13 2L4.5 13.5H11L9.5 22 19 10h-6.5L13 2z"/></svg></div><div class="nm">Purge</div></div>
+      <div class="boost" data-act="chomp"><span class="cost">50</span><div class="em"><svg width="20" height="20" viewBox="0 0 24 24" fill="#ffd76a"><path d="M13 2L4.5 13.5H11L9.5 22 19 10h-6.5L13 2z"/></svg></div><div class="nm">Strike</div></div>
       <div class="boost" data-act="fetch"><span class="cost">60</span><div class="em"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8fd8ff" stroke-width="2"><circle cx="12" cy="12" r="5.5"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/></svg></div><div class="nm">Pull</div></div>
       <div class="boost" data-act="slot"><span class="cost">80</span><div class="em"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8fd8ff" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8.5v7M8.5 12h7"/></svg></div><div class="nm">+Slot</div></div>
     </div>
@@ -116,10 +116,10 @@
 <script>
 'use strict';
 /* =========================================================
-   NEON SERPENT — Endless Drain
+   NEON DERAIL — Endless Convoy
    Eject arrow blocks from the board (each slides only in its
-   arrow direction), turn them into collectors, and drain the
-   serpent of energy orbs before it reaches the core. Endless
+   arrow direction), turn them into cannons, and shoot down the
+   armored convoy car by car before it reaches the core. Endless
    procedurally generated levels that ramp up in difficulty.
    ========================================================= */
 
@@ -171,6 +171,7 @@ function tone(f0,f1,dur,type,vol,delay=0){
 const sfx = {
   pop:   ()=>tone(520,900,0.09,'square',0.16),
   land:  ()=>tone(240,170,0.08,'sine',0.28),
+  pew:   ()=>tone(1350,420,0.06,'sawtooth',0.07),
   chomp: ()=>{ tone(330,110,0.12,'sawtooth',0.2); tone(95,55,0.11,'square',0.22); },
   deny:  ()=>tone(150,110,0.1,'square',0.16),
   click: ()=>tone(720,720,0.05,'square',0.1),
@@ -548,7 +549,7 @@ function extract(p, ignoreBlock){
   sfx.pop(); G.lastInput=performance.now();
 }
 
-// ---------- winding: every spool plucks its color from any wool on screen ----------
+// ---------- firing: every cannon shoots the closest matching car on screen ----------
 function spoolPos(p){
   const c=slotCenter(p.slot??0); return {x:c.x,y:c.y,s:c.s};
 }
@@ -556,32 +557,34 @@ function segXY(i,seg){
   const p=posAt(Math.max(0.5,segS(i,seg)));
   return {x:p.x, y:p.y+Math.sin(G.crawlT*2.2+i*0.65)*1.4};
 }
-// spools without a yarn ball in flight grab the closest-to-head visible match
-function startWinds(){
+function startShots(){
   if(G.phase!=='play') return;
   for(const p of G.pieces){
-    if(p.state!=='tray' || p.ball) continue;
+    if(p.state!=='tray' || p.shot || p.reload>0) continue;
     for(let i=0;i<G.snake.length;i++){
       if(!segVisible(i)) break;
-      if(G.snake[i].c!==p.color) continue;
-      const seg=G.snake[i], at=segXY(i,seg);
-      G.snake.splice(i,1);
-      for(let j=i;j<G.snake.length;j++) G.snake[j].ofs+=G.segLen;  // body zips closed
-      dragFront(G.segLen*pushFactorFor(G.level));      // unraveling drags the dragon back
-      G.mouthOpen=1;
-      p.ball={t:0, x0:at.x, y0:at.y};
-      windFx(at,seg.c);
+      const seg=G.snake[i];
+      if(seg.c!==p.color || seg.aim) continue;
+      seg.aim=p.id;                       // cars stay on the rails until the shell lands
+      p.shot={t:0, seg};
+      sfx.pew();
       break;
     }
   }
 }
-function completeWind(p){
-  p.ball=null;
-  G.windCombo++;
-  buzz(8);
-  tone(430+Math.min(500,G.windCombo*40),560+Math.min(500,G.windCombo*40),0.05,'square',0.09);
+function impact(p){
+  const seg=p.shot.seg; p.shot=null; p.reload=0.12;
+  const idx=G.snake.indexOf(seg);
+  if(idx<0) return;                       // target already purged — the shot fizzles, no shell spent
+  const at=segXY(idx,seg);
+  G.snake.splice(idx,1);
+  for(let j=idx;j<G.snake.length;j++) G.snake[j].ofs+=G.segLen;  // couplers close the gap
+  dragFront(G.segLen*pushFactorFor(G.level));      // every car destroyed knocks the train back
+  G.windCombo++; G.comboT=1.0;
+  boomFx(at,seg.c); buzz(8);
+  tone(300+Math.min(400,G.windCombo*32),70,0.08,'square',0.13);
   p.units--;
-  if(p.units<=0){                        // spool is full: pops off, frees the slot
+  if(p.units<=0){                         // cannon out of shells: discharges, frees the slot
     p.state='gone'; p.slot=null;
     save.coins+=1; persist();
     sfx.coin(); popFx(p);
@@ -598,6 +601,11 @@ function windFx(at,col){
   const C=PALETTE[col];
   for(let i=0;i<5;i++) G.particles.push({x:at.x,y:at.y,vx:rand(-60,60),vy:rand(-90,-5),g:240,r:rand(1.5,3.5),c:C.m,t:0,dur:rand(.3,.5)});
 }
+function boomFx(at,col){
+  const C=PALETTE[col];
+  G.particles.push({x:at.x,y:at.y,vx:0,vy:0,g:0,r:rand(9,13),c:'#ffffff',t:0,dur:0.14,glow:true});
+  for(let i=0;i<10;i++) G.particles.push({x:at.x,y:at.y,vx:rand(-140,140),vy:rand(-140,60),g:200,r:rand(1.5,3.8),c:i%3?C.m:'#ffbe3d',t:0,dur:rand(.25,.5)});
+}
 function popFx(p){
   const s=spoolPos(p), C=PALETTE[p.color];
   for(let i=0;i<12;i++) G.particles.push({x:s.x,y:s.y,vx:rand(-120,120),vy:rand(-160,-20),g:340,r:rand(2,4.5),c:i%3?C.m:'#ffd95e',t:0,dur:rand(.4,.7)});
@@ -605,7 +613,7 @@ function popFx(p){
 
 // ---------- end conditions ----------
 function winCheck(){
-  if(G.phase==='play' && !G.snake.length && !G.pieces.some(p=>p.ball)) win();
+  if(G.phase==='play' && !G.snake.length && !G.pieces.some(p=>p.shot)) win();
 }
 function win(){
   G.phase='win';
@@ -640,7 +648,7 @@ function boostBack(){
 function consumeCapacity(col,amount){
   // keep color totals balanced: burn matching wrap capacity somewhere
   let left=amount;
-  const trayP=G.pieces.find(p=>p.state==='tray'&&p.color===col&&!p.ball);
+  const trayP=G.pieces.find(p=>p.state==='tray'&&p.color===col&&!p.shot);
   if(trayP){ const take=Math.min(left,trayP.units); trayP.units-=take; left-=take;
     if(trayP.units<=0){ trayP.state='gone'; trayP.slot=null; popFx(trayP); compactTray(); } }
   if(left>0){
@@ -717,9 +725,9 @@ function hideOverlay(){ $('overlay').classList.remove('show'); }
 
 function showMenu(){
   G.phase='menu';
-  overlay(`<h1>Neon Serpent</h1>
-    <p style="letter-spacing:5px;color:#79c8ff;margin-top:6px">ENDLESS DRAIN</p>
-    <p>Drain the serpent before it reaches the core.<br>Endless levels — each one harder than the last.</p>
+  overlay(`<h1>Neon Derail</h1>
+    <p style="letter-spacing:5px;color:#79c8ff;margin-top:6px">ENDLESS CONVOY</p>
+    <p>Shoot down the convoy before it reaches the core.<br>Endless levels — each one harder than the last.</p>
     <div class="stat"><span>LV ${G.level}</span><span style="color:#ffd76a">◆ ${save.coins}</span></div>
     <button class="btn" data-act="play">Play Level ${G.level}</button>
     <button class="btn ghost" data-act="how">How to play</button>`);
@@ -728,21 +736,21 @@ function showMenu(){
 function showHow(fromStart){
   overlay(`<h2>How to play</h2>
     <div class="howrow"><span class="ic">01</span><div>Tap a block to eject it — it only slides in its <b>arrow direction</b>, and the path must be clear.</div></div>
-    <div class="howrow"><span class="ic">02</span><div>Ejected blocks become <b>collectors</b>. A collector drains its color from <b>any orb on screen</b> — at 0 it discharges and frees its slot.</div></div>
-    <div class="howrow"><span class="ic">03</span><div>The serpent advances on the core, and <b>more of it streams in from offscreen</b>. Every orb you drain drags it back — empty it to win.</div></div>
-    <div class="howrow"><span class="ic">04</span><div>A dimmed collector has no match on screen yet — it blocks its slot until its color arrives.</div></div>
+    <div class="howrow"><span class="ic">02</span><div>Ejected blocks become <b>cannons</b>. A cannon auto-fires at <b>any matching car on screen</b> — out of shells, it discharges and frees its slot.</div></div>
+    <div class="howrow"><span class="ic">03</span><div>The train advances on the core, and <b>more cars stream in from offscreen</b>. Every car destroyed knocks it back — wipe out the convoy to win.</div></div>
+    <div class="howrow"><span class="ic">04</span><div>A dimmed cannon has no target on screen yet — it blocks its slot until its color rolls in.</div></div>
     <button class="btn blue" data-act="${fromStart?'resume':'menu'}">Got it</button>`);
 }
 function showWin(reward){
-  overlay(`<h2>Serpent drained</h2>
+  overlay(`<h2>Convoy derailed</h2>
     <div class="big">◆ +${reward}</div>
     <p>${G.usedAnyBoost?'':'Perfect — no boosters used (+10)<br>'}The core holds… until Level ${G.level+1}.</p>
     <button class="btn" data-act="next">Next Level</button>`);
 }
 function showLose(){
   const can=save.coins>=PRICES.revive && G.reviveCount<2;
-  overlay(`<h2>Core lost</h2>
-    <p>The serpent crossed the whole runway. Drain faster — every orb drags it back.</p>
+  overlay(`<h2>Core overrun</h2>
+    <p>The convoy crossed the whole line. Fire faster — every car destroyed knocks it back.</p>
     <button class="btn gold ${can?'':'off'}" data-act="revive">« Push it way back — ◆ ${PRICES.revive}</button>
     <button class="btn blue" data-act="retry">Retry Level ${G.level}</button>`);
 }
@@ -832,16 +840,16 @@ function update(dt){
       }
     }
   }
-  // winding: spools grab visible matches, yarn balls fly to them
-  startWinds();
-  let anyBall=false;
+  // firing: cannons acquire matching cars and shoot
+  startShots();
   for(const p of G.pieces){
-    if(!p.ball) continue;
-    anyBall=true;
-    p.ball.t+=dt/0.28;
-    if(p.ball.t>=1) completeWind(p);
+    if(p.reload>0) p.reload-=dt;
+    if(!p.shot) continue;
+    p.shot.t+=dt/0.18;
+    if(p.shot.t>=1) impact(p);
   }
-  if(!anyBall && !G.pieces.some(p=>p.ball)) G.windCombo=0;
+  G.comboT=(G.comboT||0)-dt;
+  if(G.comboT<=0) G.windCombo=0;
   for(const seg of G.snake) if(seg.ofs>0) seg.ofs=Math.max(0,seg.ofs-dt*G.segLen*6);
   // nudge the player when the tray is clogged
   G.stallT=(G.stallT||0)+dt;
@@ -850,7 +858,7 @@ function update(dt){
     const vis=new Set(visibleColors());
     if(occupancyPieces().length>=capacity() &&
        !G.pieces.some(p=>p.state==='tray'&&(p.ball||vis.has(p.color))))
-      toast('Collectors stalled — no match on screen');
+      toast('Cannons holding fire — no target on screen');
   }
   // fire breath when the dragon is close to the cat
   if(G.phase==='play' && dangerFrac()>0.68 && Math.random()<dt*22){
@@ -928,10 +936,10 @@ function drawBolt(x,y,w,h,colIdx,dir,units,opts={}){
   ctx.restore();
 }
 
-function drawSpool(cx,cy,size,colIdx,units,winding){
-  // collector: dark chip holding a glowing orb + remaining-capacity badge
+function drawSpool(cx,cy,size,colIdx,units,firing,aimAng){
+  // cannon: dark emplacement with a turret barrel that tracks its target
   const C=PALETTE[colIdx];
-  if(winding) drawGlow(cx,cy,size*0.95,C.m,0.45);
+  if(firing) drawGlow(cx,cy,size*0.95,C.m,0.40);
   ctx.save();
   ctx.translate(cx,cy);
   const w=size*0.94, r=size*0.15;
@@ -939,12 +947,23 @@ function drawSpool(cx,cy,size,colIdx,units,winding){
   rr(-w/2,-w/2,w,w,r); ctx.fill();
   ctx.strokeStyle=C.m; ctx.lineWidth=1.6;
   rr(-w/2+0.8,-w/2+0.8,w-1.6,w-1.6,r); ctx.stroke();
-  const orbR=size*0.25*(winding?1+Math.sin(G.crawlT*10)*0.09:1);
-  drawGlow(0,0,orbR*2.1,C.m,0.5);
-  const gr=ctx.createRadialGradient(0,-orbR*0.2,orbR*0.12,0,0,orbR);
+  // turret
+  ctx.save();
+  ctx.rotate(aimAng==null?-Math.PI/2:aimAng);
+  const bl=size*0.44, bw=Math.max(3.5,size*0.13);
+  const kick=firing?Math.sin(Math.PI*Math.min(1,firing))* -size*0.06:0;
+  ctx.translate(kick,0);
+  ctx.fillStyle='#101a33'; ctx.strokeStyle=C.l; ctx.lineWidth=1.3;
+  rr(size*0.06,-bw/2,bl,bw,bw*0.4); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  // mount: glowing color hub
+  const hubR=size*0.20*(firing?1.08:1);
+  drawGlow(0,0,hubR*2.0,C.m,0.5);
+  const gr=ctx.createRadialGradient(0,-hubR*0.2,hubR*0.12,0,0,hubR);
   gr.addColorStop(0,'#fff'); gr.addColorStop(0.4,C.l); gr.addColorStop(1,C.m);
   ctx.fillStyle=gr;
-  ctx.beginPath(); ctx.arc(0,0,orbR,0,7); ctx.fill();
+  ctx.beginPath(); ctx.arc(0,0,hubR,0,7); ctx.fill();
+  // shells-remaining badge
   ctx.fillStyle='rgba(10,16,34,0.95)'; ctx.strokeStyle=C.m; ctx.lineWidth=1.4;
   ctx.beginPath(); ctx.arc(w*0.40,-w*0.40,size*0.20,0,7); ctx.fill(); ctx.stroke();
   ctx.fillStyle='#fff'; ctx.font=`800 ${Math.max(10,size*0.25)}px Menlo,monospace`;
@@ -954,28 +973,31 @@ function drawSpool(cx,cy,size,colIdx,units,winding){
 }
 
 function drawSnakeSeg(x,y,ang,colIdx,i){
+  // a train car: dark wagon with a neon rim, cargo glow, and wheels on the rail
   const C=PALETTE[colIdx];
-  const L=G.segLen*1.5, T=G.thick;
-  drawGlow(x,y,T*0.95,C.m,0.30);
+  const L=G.segLen*1.32, T=G.thick*0.94;
+  drawGlow(x,y,T*0.85,C.m,0.24);
   ctx.save();
   ctx.translate(x,y); ctx.rotate(ang);
-  const wob=Math.sin(G.crawlT*2.2+i*0.65)*1.4;
-  ctx.translate(0,wob);
+  // wheels
+  ctx.fillStyle='#0a1122'; ctx.strokeStyle='rgba(120,200,255,0.5)'; ctx.lineWidth=1;
+  for(const wx of [-L*0.28,L*0.28]){
+    ctx.beginPath(); ctx.arc(wx,T*0.42,T*0.16,0,7); ctx.fill(); ctx.stroke();
+  }
+  // body
+  const r=Math.min(L,T)*0.18;
   const gr=ctx.createLinearGradient(0,-T/2,0,T/2);
-  gr.addColorStop(0,C.m); gr.addColorStop(0.55,C.d); gr.addColorStop(1,'#0a1122');
-  ctx.fillStyle=gr;
-  ctx.beginPath(); ctx.ellipse(0,0,L/2,T/2,0,0,7); ctx.fill();
+  gr.addColorStop(0,C.d); gr.addColorStop(1,'#0a1122');
+  ctx.fillStyle='rgba(10,16,34,0.94)';
+  rr(-L/2,-T/2,L,T*0.86,r); ctx.fill();
+  ctx.fillStyle=gr; ctx.globalAlpha=0.8;
+  rr(-L/2,-T/2,L,T*0.86,r); ctx.fill();
+  ctx.globalAlpha=1;
   ctx.strokeStyle=C.m; ctx.lineWidth=1.6;
-  ctx.beginPath(); ctx.ellipse(0,0,L/2-0.8,T/2-0.8,0,0,7); ctx.stroke();
-  // chevron marks, bright on dark
-  ctx.strokeStyle=C.l; ctx.globalAlpha=0.85; ctx.lineWidth=Math.max(1.4,T*0.09); ctx.lineCap='round';
-  ctx.beginPath();
-  ctx.moveTo(-L*0.16,-T*0.26); ctx.lineTo(L*0.10,0); ctx.lineTo(-L*0.16,T*0.26);
-  ctx.stroke();
-  ctx.globalAlpha=0.35;
-  ctx.beginPath();
-  ctx.moveTo(-L*0.30,-T*0.26); ctx.lineTo(-L*0.04,0); ctx.lineTo(-L*0.30,T*0.26);
-  ctx.stroke();
+  rr(-L/2+0.8,-T/2+0.8,L-1.6,T*0.86-1.6,r); ctx.stroke();
+  // cargo window: a slot of glowing payload
+  ctx.fillStyle=C.m; ctx.globalAlpha=0.85;
+  rr(-L*0.26,-T*0.16,L*0.52,T*0.24,2); ctx.fill();
   ctx.globalAlpha=1;
   ctx.restore();
 }
@@ -984,29 +1006,51 @@ function drawDragonHead(){
   const end=posAt(G.front);
   const R=headR();
   const open=G.mouthOpen;
-  // faceless energy head: a tapered hot streak with a white-hot core
-  drawGlow(end.x,end.y,R*1.9,'#ff3d71',0.40);
+  // the locomotive: armored engine with a cowcatcher and a headlight beam
+  drawGlow(end.x,end.y,R*1.9,'#ff3d71',0.38);
   ctx.save();
   ctx.translate(end.x,end.y); ctx.rotate(end.ang);
-  ctx.translate(Math.sin(G.crawlT*2.2)*0.8,0);
   const C={m:'#ff3d71',d:'#701a33',l:'#ff9ab4'};
-  const gr=ctx.createLinearGradient(-R,0,R*1.25,0);
-  gr.addColorStop(0,'#12060c'); gr.addColorStop(0.45,C.d); gr.addColorStop(1,C.m);
-  ctx.fillStyle=gr;
+  const L=R*2.1, T=R*1.5;
+  // headlight beam
+  const flick=0.10+Math.sin(G.crawlT*13)*0.02;
+  ctx.fillStyle=`rgba(255,240,220,${flick})`;
   ctx.beginPath();
-  ctx.moveTo(-R*0.7,-R*0.72);
-  ctx.quadraticCurveTo(R*0.9,-R*0.62,R*1.25,0);
-  ctx.quadraticCurveTo(R*0.9,R*0.62,-R*0.7,R*0.72);
-  ctx.quadraticCurveTo(-R*0.30,0,-R*0.7,-R*0.72);
+  ctx.moveTo(L*0.52,0);
+  ctx.lineTo(L*0.52+R*2.6,-R*0.75);
+  ctx.lineTo(L*0.52+R*2.6,R*0.75);
   ctx.closePath(); ctx.fill();
-  ctx.strokeStyle=C.m; ctx.lineWidth=2; ctx.lineJoin='round'; ctx.stroke();
-  drawGlow(R*0.30,0,R*0.8,'#ffffff',0.45);
+  // wheels
+  ctx.fillStyle='#0a1122'; ctx.strokeStyle='rgba(255,120,160,0.55)'; ctx.lineWidth=1;
+  for(const wx of [-L*0.30,0,L*0.26]){
+    ctx.beginPath(); ctx.arc(wx,T*0.34,T*0.15,0,7); ctx.fill(); ctx.stroke();
+  }
+  // hull with an angled nose
+  const gr=ctx.createLinearGradient(-L/2,0,L*0.6,0);
+  gr.addColorStop(0,'#12060c'); gr.addColorStop(0.55,C.d); gr.addColorStop(1,C.m);
+  ctx.fillStyle=gr; ctx.strokeStyle=C.m; ctx.lineWidth=2; ctx.lineJoin='round';
+  ctx.beginPath();
+  ctx.moveTo(-L*0.5,-T*0.40);
+  ctx.lineTo(L*0.18,-T*0.40);
+  ctx.lineTo(L*0.52,-T*0.06);
+  ctx.lineTo(L*0.52,T*0.28);
+  ctx.lineTo(-L*0.5,T*0.28);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  // cowcatcher
+  ctx.beginPath();
+  ctx.moveTo(L*0.40,T*0.28); ctx.lineTo(L*0.62,T*0.44); ctx.lineTo(L*0.28,T*0.28);
+  ctx.closePath(); ctx.fillStyle=C.d; ctx.fill(); ctx.stroke();
+  // stack
+  ctx.fillStyle='#0a1122'; ctx.strokeStyle=C.l; ctx.lineWidth=1.5;
+  rr(-L*0.16,-T*0.62,L*0.16,T*0.24,2); ctx.fill(); ctx.stroke();
+  // headlight lamp
+  drawGlow(L*0.52,0,R*0.7,'#ffffff',0.5);
   ctx.fillStyle='#fff';
-  ctx.beginPath(); ctx.arc(R*0.30,0,R*0.28,0,7); ctx.fill();
-  // drain flash: expanding ring on each orb consumed
-  if(open>0.05){
-    ctx.strokeStyle=`rgba(255,154,180,${open*0.9})`; ctx.lineWidth=2.5;
-    ctx.beginPath(); ctx.arc(R*0.25,0,R*(0.55+(1-open)*1.0),0,7); ctx.stroke();
+  ctx.beginPath(); ctx.arc(L*0.50,0,R*0.18,0,7); ctx.fill();
+  // engine sparks while advancing
+  if(G.phase==='play' && Math.random()<0.25){
+    G.particles.push({x:end.x-Math.cos(end.ang)*L*0.1,y:end.y-Math.sin(end.ang)*T*0.45,
+      vx:rand(-20,20),vy:rand(-50,-15),g:60,r:rand(1,2.2),c:'#ff9ab4',t:0,dur:rand(.2,.4)});
   }
   ctx.restore();
 }
@@ -1062,16 +1106,27 @@ function draw(){
   }
   ctx.globalAlpha=1;
 
-  // snake path: dark road with a faint cyan edge, tower-defence style
+  // the track: twin neon rails with cross-ties
   ctx.save();
-  ctx.strokeStyle='rgba(47,79,142,0.35)';
-  ctx.lineWidth=G.thick*0.62; ctx.lineCap='round';
+  const railOff=G.thick*0.30;
+  ctx.strokeStyle='rgba(90,170,255,0.28)'; ctx.lineWidth=1.5; ctx.lineCap='round';
+  for(const side of [-1,1]){
+    ctx.beginPath();
+    let first=true;
+    for(let i=0;i<path.pts.length-3;i+=3){
+      const p=path.pts[i], q=path.pts[i+3]||path.pts[path.pts.length-1];
+      const dx=q[0]-p[0], dy=q[1]-p[1], d=Math.hypot(dx,dy)||1;
+      const nx=-dy/d*railOff*side, ny=dx/d*railOff*side;
+      first?ctx.moveTo(p[0]+nx,p[1]+ny):ctx.lineTo(p[0]+nx,p[1]+ny); first=false;
+    }
+    ctx.stroke();
+  }
+  ctx.strokeStyle='rgba(90,170,255,0.13)'; ctx.lineWidth=2;
   ctx.beginPath();
-  for(let i=0;i<path.pts.length;i+=3){ const p=path.pts[i]; i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]); }
-  ctx.stroke();
-  ctx.strokeStyle='rgba(90,200,255,0.14)';
-  ctx.lineWidth=G.thick*0.62+3;
-  ctx.setLineDash([2,10]); ctx.lineDashOffset=-G.crawlT*10;
+  for(let s=0;s<path.len;s+=14){
+    const p=posAt(s), nx=-Math.sin(p.ang)*railOff*1.35, ny=Math.cos(p.ang)*railOff*1.35;
+    ctx.moveTo(p.x-nx,p.y-ny); ctx.lineTo(p.x+nx,p.y+ny);
+  }
   ctx.stroke();
   ctx.restore();
 
@@ -1183,15 +1238,20 @@ function draw(){
     ctx.restore();
   }
 
-  // tray spools (dim the ones with no wool to grab right now)
+  // cannons in their slots (dim the ones with no target on screen)
   const visSet=new Set(visibleColors());
   for(const p of G.pieces){
     if(p.state!=='tray') continue;
     const c=slotCenter(p.slot);
     const sc=1+(p.landBounce||0)*0.25;
-    const idle=!p.ball && !visSet.has(p.color);
+    let aimAng=null;
+    if(p.shot){
+      const idx=G.snake.indexOf(p.shot.seg);
+      if(idx>=0){ const at=segXY(idx,p.shot.seg); aimAng=Math.atan2(at.y-c.y,at.x-c.x); }
+    }
+    const idle=!p.shot && !visSet.has(p.color);
     if(idle) ctx.globalAlpha=0.68;
-    drawSpool(c.x,c.y,c.s*0.86*sc,p.color,p.units,!!p.ball);
+    drawSpool(c.x,c.y,c.s*0.86*sc,p.color,p.units,p.shot?clamp(p.shot.t,0,1):0,aimAng);
     ctx.globalAlpha=1;
   }
 
@@ -1213,24 +1273,29 @@ function draw(){
       ctx.restore();
     }
   }
-  // winding: yarn balls zipping from the body to their spools, thread trailing
+  // shells in flight: tracer rounds from cannon to car, with a muzzle flash
   for(const p of G.pieces){
-    if(!p.ball) continue;
-    const t=easeInQuad(clamp(p.ball.t,0,1));
+    if(!p.shot) continue;
+    const idx=G.snake.indexOf(p.shot.seg);
+    if(idx<0) continue;
+    const at=segXY(idx,p.shot.seg);
     const sp=spoolPos(p);
     const C=PALETTE[p.color];
-    const cx=lerp(p.ball.x0,sp.x,t), cy=lerp(p.ball.y0,sp.y,t)-Math.sin(Math.PI*t)*26;
-    ctx.strokeStyle=C.m; ctx.lineWidth=2.5; ctx.lineCap='round';
-    ctx.globalAlpha=0.85;
-    ctx.beginPath(); ctx.moveTo(cx,cy);
-    ctx.quadraticCurveTo((cx+sp.x)/2,(cy+sp.y)/2+12,sp.x,sp.y);
-    ctx.stroke(); ctx.globalAlpha=1;
-    const s=lerp(G.thick*0.42,8,t);
-    drawGlow(cx,cy,s*2.2,C.m,0.45);
-    ctx.fillStyle=C.m; ctx.strokeStyle=C.l; ctx.lineWidth=1.6;
-    ctx.beginPath(); ctx.arc(cx,cy,s,0,7); ctx.fill(); ctx.stroke();
-    ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=1.6;
-    ctx.beginPath(); ctx.arc(cx,cy,s*0.55,0.6,2.6); ctx.stroke();
+    const t=clamp(p.shot.t,0,1);
+    const cx=lerp(sp.x,at.x,t), cy=lerp(sp.y,at.y,t);
+    if(t<0.3){
+      const f=1-t/0.3;
+      drawGlow(sp.x,sp.y,14*f+6,C.l,0.5*f);
+    }
+    const dx=at.x-sp.x, dy=at.y-sp.y, dd=Math.hypot(dx,dy)||1;
+    const tl=Math.min(26,dd*0.25);
+    ctx.strokeStyle=C.m; ctx.lineWidth=2.2; ctx.lineCap='round';
+    ctx.globalAlpha=0.8;
+    ctx.beginPath(); ctx.moveTo(cx-dx/dd*tl,cy-dy/dd*tl); ctx.lineTo(cx,cy); ctx.stroke();
+    ctx.globalAlpha=1;
+    drawGlow(cx,cy,9,C.m,0.5);
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(cx,cy,2.6,0,7); ctx.fill();
   }
 
   // particles
