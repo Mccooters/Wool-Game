@@ -220,27 +220,50 @@ function drawGlow(x,y,r,color,alpha){
   ctx.globalAlpha=1;
 }
 
-// ---------- snake path (serpentine across the top area) ----------
+// ---------- track: a fresh randomized serpentine each level ----------
 let path = { pts:[], cum:[], len:1 };
+// normalized (0..1) spec, generated once per level so a resize keeps the layout
+function genTrack(){
+  const rows=randi(3,4);
+  const top=0.20, bot=0.84, ys=[];
+  for(let i=0;i<rows;i++) ys.push(top+(bot-top)*(i/(rows-1))+rand(-0.03,0.03));
+  const entryLeft=Math.random()<0.5;
+  const turns=[];
+  for(let i=0;i<rows-1;i++){
+    const rightSide = entryLeft ? (i%2===0) : (i%2===1);
+    turns.push(rightSide ? rand(0.74,0.90) : rand(0.10,0.26));
+  }
+  return { rows, ys, entryLeft, turns, endFrac:rand(0.34,0.68) };
+}
 function buildPath(){
-  const a=A.snake, mx=a.w*0.115, top=a.h*0.24, mid=a.h*0.52, bot=a.h*0.80;
-  const R1=(mid-top)/2, R2=(bot-mid)/2;
+  const a=A.snake, T=(G.track||(G.track=genTrack()));
   const raw=[];
   const seg=(x0,y0,x1,y1)=>{ const n=28; for(let i=0;i<=n;i++) raw.push([lerp(x0,x1,i/n), lerp(y0,y1,i/n)]); };
   const arc=(cx,cy,r,a0,a1)=>{ const n=24; for(let i=1;i<=n;i++){ const t=lerp(a0,a1,i/n); raw.push([cx+Math.cos(t)*r, cy+Math.sin(t)*r]); } };
-  // the path begins beyond the left edge so the body truly crawls in from offscreen
-  seg(-a.w*0.18, top, a.w-mx, top);
-  arc(a.w-mx, top+R1, R1, -Math.PI/2, Math.PI/2);
-  seg(a.w-mx, mid, mx, mid);
-  arc(mx, mid+R2, R2, -Math.PI/2, -Math.PI*1.5);
-  seg(mx, bot, a.w*0.60, bot);
+  const ys=T.ys.map(f=>f*a.h), turns=T.turns.map(f=>f*a.w);
+  let dirRight=T.entryLeft;
+  // the head begins well beyond the entry edge so the whole train crawls in
+  let curX = T.entryLeft ? -a.w*0.22 : a.w*1.22;
+  for(let i=0;i<T.rows;i++){
+    const y=ys[i];
+    if(i<T.rows-1){
+      const tx=turns[i], ny=ys[i+1], r=Math.abs(ny-y)/2, cy=(y+ny)/2;
+      seg(curX,y, tx,y);
+      if(dirRight) arc(tx,cy,r,-Math.PI/2, Math.PI/2);       // bulge right
+      else         arc(tx,cy,r,-Math.PI/2,-Math.PI*1.5);     // bulge left
+      curX=tx; dirRight=!dirRight;
+    } else {
+      seg(curX,y, T.endFrac*a.w, y);                          // last row ends at the core
+    }
+  }
   const pts=[], cum=[0]; let L=0;
   for(let i=0;i<raw.length;i++){
     if(i>0){ const dx=raw[i][0]-raw[i-1][0], dy=raw[i][1]-raw[i-1][1]; const d=Math.hypot(dx,dy); if(d<0.4) continue; L+=d; cum.push(L); }
     pts.push(raw[i]);
   }
+  // entryS = arc-length where the head first comes on screen (train emerges from offscreen)
   let entryS=0;
-  for(let i=0;i<pts.length;i++) if(pts[i][0]>=0){ entryS=cum[i]; break; }
+  for(let i=0;i<pts.length;i++) if(pts[i][0]>=0 && pts[i][0]<=a.w){ entryS=cum[i]; break; }
   path={pts,cum,len:L,entryS};
 }
 function posAt(s){
@@ -255,7 +278,7 @@ function posAt(s){
 
 // ---------- level generation ----------
 function targetCells(L){ return L>=14 ? 52-randi(0,5) : 13+3*L; }
-function creepFor(L){ return 0.020 + Math.min(0.042, 0.0014*L); }
+function creepFor(L){ return 0.020 + Math.min(0.037, 0.0013*L); }
 function pushFactorFor(L){ return Math.max(0.34, 1.10-0.020*L); }
 function nColorsFor(L){ return L>=24 ? 7 : clamp(3+Math.floor(L/5),3,6); }
 function diagChanceFor(L){ return L<9 ? 0 : Math.min(0.35, 0.04+(L-8)*0.03); }
@@ -413,6 +436,7 @@ const G = {
   crawlT:0,
   front:0, frontTarget:0,  // dragon head position along the path (px of arc length)
   startFront:0, creep:0, graceT:0,
+  track:null,
   segId:1,
   windCombo:0,
   tempSlot:false, usedSlotBoost:false, usedAnyBoost:false,
@@ -474,6 +498,7 @@ function startLevel(){
   G.tempSlot=false; G.usedSlotBoost=false; G.usedAnyBoost=false;
   G.windCombo=0; G.particles.length=0; G.confetti.length=0;
   G.phase='play'; G.reviveCount=0;
+  G.track=genTrack(); buildPath();   // fresh randomized rail layout for this level
   layoutBoard();
   G.front=G.frontTarget=G.startFront;
   G.creep=path.len*creepFor(G.level)*rand(0.95,1.05);
@@ -1280,7 +1305,7 @@ function draw(){
     const t=clamp(p.shot.t,0,1);
     const dx=at.x-sp.x, dy=at.y-sp.y, len=Math.hypot(dx,dy)||1;
     const nx=-dy/len, ny=dx/len;                 // perpendicular to the beam
-    const amp=Math.min(len*0.13, G.thick*0.7)*Math.sin(t*Math.PI); // swells then settles
+    const amp=Math.min(len*0.06, G.thick*0.32)*Math.sin(t*Math.PI); // subtle sway, settles to straight
     const steps=22;
     // two passes: fat colored glow, then a bright white core
     for(const pass of [{w:Math.max(5,G.thick*0.34),a:0.32,c:C.m},{w:2,a:0.95,c:'#fff'}]){
